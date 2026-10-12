@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Admin from "./pages/Admin";
 import MyBookings from "./pages/MyBookings";
+import Locations from "./pages/Location";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/my-bookings" element={<MyBookings />} />
+      <Route path="/locations" element={<Locations />} />
 
       {/* Koi galat URL likhe to Home par bhej do */}
       <Route path="*" element={<Navigate to="/" />} />

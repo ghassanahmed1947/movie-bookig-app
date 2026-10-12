@@ -11,6 +11,8 @@ import {
   CalendarDays,
   ArrowLeft,
   Trash2,
+  MapPin,
+  Navigation,
 } from "lucide-react";
 import api from "../api";
 import ConfirmModal from "../components/ConfirmModal";
@@ -57,7 +59,6 @@ function MyBookings() {
 
     try {
       await api.delete(`/bookings/${booking._id}`);
-      // List mein se turant hata do, dobara fetch ki zaroorat nahi
       setBookings((prev) => prev.filter((b) => b._id !== booking._id));
     } catch (err) {
       if (err.response?.status === 401) {
@@ -184,6 +185,35 @@ function MyBookings() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mt-4 text-sm text-gray-400">
+                  {/* Cinema (purani bookings mein nahi hota) */}
+                  {b.locationName && (
+                    <div className="flex items-start gap-2.5 sm:col-span-2">
+                      <MapPin size={16} className="text-red-500 shrink-0 mt-0.5" />
+                      <span>
+                        Cinema:{" "}
+                        <span className="text-white">
+                          {b.locationName}, {b.locationCity}
+                        </span>
+                        {b.locationAddress && (
+                          <span className="block text-xs text-gray-500 mt-0.5">
+                            {b.locationAddress}
+                                                    {b.locationMapUrl && (
+                          <a
+                            href={b.locationMapUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 mt-1.5 text-xs text-red-400 hover:text-red-300"
+                          >
+                            <Navigation size={12} />
+                            View on Google Maps
+                          </a>
+                        )}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2.5">
                     <Clock3 size={16} className="text-red-500 shrink-0" />
                     <span>
@@ -243,7 +273,11 @@ function MyBookings() {
         title="Cancel this booking?"
         message={
           bookingToCancel
-            ? `Your ${bookingToCancel.seats} seat(s) for "${bookingToCancel.movieTitle}" at ${bookingToCancel.showtime} will be cancelled. This can't be undone.`
+            ? `Your ${bookingToCancel.seats} seat(s) for "${bookingToCancel.movieTitle}" at ${bookingToCancel.showtime}${
+                bookingToCancel.locationName
+                  ? ` (${bookingToCancel.locationName})`
+                  : ""
+              } will be cancelled. This can't be undone.`
             : ""
         }
         confirmText="Yes, cancel booking"

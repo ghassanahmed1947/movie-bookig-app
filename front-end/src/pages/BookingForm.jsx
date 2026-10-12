@@ -9,6 +9,9 @@ import {
   ArrowLeft,
   CheckCircle2,
   Ticket,
+  MapPin,
+  Film,
+  Navigation,
 } from "lucide-react";
 import api from "../api";
 
@@ -19,8 +22,12 @@ function BookingForm() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [movie, setMovie] = useState(null);
+  const [locations, setLocations] = useState([]);
+  const [locLoaded, setLocLoaded] = useState(false);
   const [form, setForm] = useState({
     showtime: "",
+    city: "",
+    locationId: "",
     customerName: user.name || "",
     contactNo: "",
     seats: 1,
@@ -44,11 +51,27 @@ function BookingForm() {
         setForm((f) => ({ ...f, showtime: res.data.showtimes[0] }));
       })
       .catch(() => setLoadError("Movie not found."));
+
+    api
+      .get("/locations")
+      .then((res) => setLocations(res.data))
+      .catch(() => setLocations([]))
+      .finally(() => setLocLoaded(true));
   }, [id]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
+  // Shehar badalne par cinema reset ho jata hai
+  const handleCityChange = (e) => {
+    setForm({ ...form, city: e.target.value, locationId: "" });
+  };
+
+  const cities = [...new Set(locations.map((l) => l.city))].sort();
+  const cityCinemas = locations.filter((l) => l.city === form.city);
+  const selectedCinema = locations.find((l) => l._id === form.locationId);
+  const noCinemas = locLoaded && locations.length === 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,6 +81,7 @@ function BookingForm() {
     try {
       await api.post("/bookings", {
         movie: id,
+        location: form.locationId,
         showtime: form.showtime,
         customerName: form.customerName,
         contactNo: form.contactNo,
@@ -99,6 +123,11 @@ function BookingForm() {
       </div>
     );
   }
+
+  const fieldBox =
+    "flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition";
+  const labelClass =
+    "text-xs uppercase tracking-wide text-gray-500 mb-1.5 block";
 
   return (
     <div className="min-h-screen bg-[#070b14] text-white flex flex-col">
@@ -187,9 +216,17 @@ function BookingForm() {
                 {form.seats} seat(s) for{" "}
                 <span className="text-white font-medium">{movie.title}</span>
               </p>
-              <p className="text-gray-400 text-sm mb-7">
+              <p className="text-gray-400 text-sm mt-1">
                 Showtime: <span className="text-white">{form.showtime}</span>
               </p>
+              {selectedCinema && (
+                <p className="text-gray-400 text-sm mt-1 mb-7">
+                  Cinema:{" "}
+                  <span className="text-white">
+                    {selectedCinema.name}, {selectedCinema.city}
+                  </span>
+                </p>
+              )}
 
               <button
                 onClick={() => navigate("/my-bookings")}
@@ -216,12 +253,95 @@ function BookingForm() {
                 </div>
               )}
 
+              {noCinemas && (
+                <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm p-3 rounded-lg mb-5">
+                  No cinemas have been added yet, so booking is not available
+                  right now. Please check back soon.
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-5">
+                {/* CITY */}
                 <div>
-                  <label className="text-xs uppercase tracking-wide text-gray-500 mb-1.5 block">
-                    Showtime
-                  </label>
-                  <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition">
+                  <label className={labelClass}>City</label>
+                  <div className={fieldBox}>
+                    <MapPin className="text-gray-500 mr-3" size={18} />
+                    <select
+                      name="city"
+                      value={form.city}
+                      onChange={handleCityChange}
+                      disabled={noCinemas}
+                      className="w-full bg-transparent outline-none text-sm disabled:opacity-50"
+                      required
+                    >
+                      <option value="" className="text-black">
+                        Select your city
+                      </option>
+                      {cities.map((c) => (
+                        <option key={c} value={c} className="text-black">
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* CINEMA */}
+                <div>
+                  <label className={labelClass}>Cinema</label>
+                  <div className={fieldBox}>
+                    <Film className="text-gray-500 mr-3" size={18} />
+                    <select
+                      name="locationId"
+                      value={form.locationId}
+                      onChange={handleChange}
+                      disabled={!form.city}
+                      className="w-full bg-transparent outline-none text-sm disabled:opacity-50"
+                      required
+                    >
+                      <option value="" className="text-black">
+                        {form.city ? "Select a cinema" : "Select a city first"}
+                      </option>
+                      {cityCinemas.map((l) => (
+                        <option key={l._id} value={l._id} className="text-black">
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Chune hue cinema ki jaankari */}
+                  {selectedCinema && (
+                    <div className="mt-3 bg-white/5 border border-white/10 rounded-xl p-3.5 text-sm text-gray-400 space-y-2">
+                      <div className="flex items-start gap-2.5">
+                        <MapPin size={15} className="text-red-500 shrink-0 mt-0.5" />
+                        <span>{selectedCinema.address}</span>
+                      </div>
+                      {selectedCinema.phone && (
+                        <div className="flex items-center gap-2.5">
+                          <Phone size={15} className="text-red-500 shrink-0" />
+                          <span>{selectedCinema.phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {selectedCinema?.mapUrl && (
+                        <a
+                          href={selectedCinema.mapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-red-400 hover:text-red-300"
+                        >
+                          <Navigation size={15} className="shrink-0" />
+                          View on Google Maps
+                        </a>
+                      )}
+                </div>
+
+                {/* SHOWTIME */}
+                <div>
+                  <label className={labelClass}>Showtime</label>
+                  <div className={fieldBox}>
                     <Clock className="text-gray-500 mr-3" size={18} />
                     <select
                       name="showtime"
@@ -238,11 +358,10 @@ function BookingForm() {
                   </div>
                 </div>
 
+                {/* NAME */}
                 <div>
-                  <label className="text-xs uppercase tracking-wide text-gray-500 mb-1.5 block">
-                    Full Name
-                  </label>
-                  <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition">
+                  <label className={labelClass}>Full Name</label>
+                  <div className={fieldBox}>
                     <User className="text-gray-500 mr-3" size={18} />
                     <input
                       type="text"
@@ -256,11 +375,10 @@ function BookingForm() {
                   </div>
                 </div>
 
+                {/* CONTACT */}
                 <div>
-                  <label className="text-xs uppercase tracking-wide text-gray-500 mb-1.5 block">
-                    Contact Number
-                  </label>
-                  <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition">
+                  <label className={labelClass}>Contact Number</label>
+                  <div className={fieldBox}>
                     <Phone className="text-gray-500 mr-3" size={18} />
                     <input
                       type="tel"
@@ -274,11 +392,10 @@ function BookingForm() {
                   </div>
                 </div>
 
+                {/* SEATS */}
                 <div>
-                  <label className="text-xs uppercase tracking-wide text-gray-500 mb-1.5 block">
-                    Number of Seats
-                  </label>
-                  <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition">
+                  <label className={labelClass}>Number of Seats</label>
+                  <div className={fieldBox}>
                     <Users className="text-gray-500 mr-3" size={18} />
                     <input
                       type="number"
@@ -294,8 +411,8 @@ function BookingForm() {
 
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-60 transition py-3.5 rounded-xl font-semibold shadow-lg shadow-red-900/20"
+                  disabled={saving || noCinemas || !locLoaded}
+                  className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed transition py-3.5 rounded-xl font-semibold shadow-lg shadow-red-900/20"
                 >
                   {saving ? "Booking..." : "Confirm Booking"}
                 </button>

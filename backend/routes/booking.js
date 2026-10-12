@@ -1,6 +1,7 @@
 import express from "express";
 import Booking from "../models/booking.js";
 import Movie from "../models/movie.js";
+import Location from "../models/location.js";
 import { protect, adminOnly } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -8,16 +9,23 @@ const router = express.Router();
 // CREATE a booking (sirf login user)
 router.post("/", protect, async (req, res) => {
   try {
-    const { movie, showtime, customerName, contactNo, seats } = req.body;
+    const { movie, location, showtime, customerName, contactNo, seats } =
+      req.body;
 
-    if (!movie || !showtime || !customerName || !contactNo || !seats) {
+    if (!movie || !location || !showtime || !customerName || !contactNo || !seats) {
       return res.status(400).json({ message: "Please fill all required fields" });
     }
 
-    // Movie ka naam aur poster database se lete hain, frontend par bharosa nahi
+    // Movie ki jaankari database se lete hain, frontend par bharosa nahi
     const movieDoc = await Movie.findById(movie);
     if (!movieDoc) {
       return res.status(404).json({ message: "Movie not found" });
+    }
+
+    // Cinema ki jaankari bhi database se
+    const locationDoc = await Location.findById(location);
+    if (!locationDoc) {
+      return res.status(404).json({ message: "Selected cinema not found" });
     }
 
     const booking = await Booking.create({
@@ -25,6 +33,11 @@ router.post("/", protect, async (req, res) => {
       movie: movieDoc._id,
       movieTitle: movieDoc.title,
       posterUrl: movieDoc.posterUrl,
+      location: locationDoc._id,
+      locationName: locationDoc.name,
+      locationCity: locationDoc.city,
+      locationAddress: locationDoc.address,
+      locationMapUrl: locationDoc.mapUrl,
       showtime,
       customerName,
       contactNo,
@@ -76,6 +89,5 @@ router.delete("/:id", protect, async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
-
 
 export default router;

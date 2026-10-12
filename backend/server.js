@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import movieRoutes from "./routes/movie.js";
 import bookingRoutes from "./routes/booking.js";
+import locationRoutes from "./routes/location.js";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/movies", movieRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/locations", locationRoutes);
 
 app.get("/", (req, res) => {
   res.send("Movie Booking API is running");

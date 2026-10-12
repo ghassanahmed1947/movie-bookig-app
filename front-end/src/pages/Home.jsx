@@ -25,6 +25,7 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
+
   const user = JSON.parse(localStorage.getItem("user") || "null");
 
   const handleLogout = () => {
@@ -92,12 +93,12 @@ function Home() {
                 Movies
               </a>
 
-              <a
-                href="#locations"
+              <button
+                onClick={() => navigate("/locations")}
                 className="text-gray-400 hover:text-white transition"
               >
                 Locations
-              </a>
+              </button>
 
               <a
                 href="#offers"
@@ -114,8 +115,7 @@ function Home() {
               </a>
             </div>
 
-            {/* SEARCH */}
-                        {/* SEARCH + AUTH */}
+            {/* SEARCH + AUTH */}
             <div className="flex items-center gap-3">
               <div className="hidden md:block relative">
                 <Search
@@ -180,6 +180,7 @@ function Home() {
                 </>
               )}
             </div>
+
           </div>
         </div>
       </nav>
@@ -230,12 +231,8 @@ function Home() {
                 />
               </button>
 
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("locations")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
+                            <button
+                onClick={() => navigate("/locations")}
                 className="px-6 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition"
               >
                 Find a Cinema
@@ -355,62 +352,53 @@ function Home() {
 
                   </div>
 
-                  {/* Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* Cards (horizontal scroll row) */}
+                  <div className="movie-scroll flex gap-6 overflow-x-auto snap-x snap-mandatory pt-3 pb-5">
 
                     {categoryMovies.map((movie) => (
 
                       <div
                         key={movie._id}
-                        className="group bg-[#0d1320] border border-white/[0.07] rounded-2xl overflow-hidden hover:border-red-500/30 hover:-translate-y-2 transition-all duration-300 shadow-xl shadow-black/20"
+                        className="group shrink-0 snap-start w-[85%] sm:w-[calc((100%_-_1.5rem)/2)] lg:w-[calc((100%_-_4.5rem)/4)] bg-[#0d1320] border border-white/[0.07] rounded-2xl overflow-hidden hover:border-red-500/30 hover:-translate-y-2 transition-all duration-300 shadow-xl shadow-black/20"
                       >
 
-                       {/* Poster */}
-<div className="relative h-[180px] overflow-hidden bg-slate-950 flex items-center justify-center p-1">
+                        {/* Poster */}
+                        <div className="relative h-[180px] overflow-hidden bg-slate-950 flex items-center justify-center p-1">
 
-  <img
-    src={movie.posterUrl}
-    alt={movie.title}
-    onLoad={() => console.log("Loaded:", movie.posterUrl)}
-    onError={() => console.log("FAILED to load:", movie.posterUrl)}
-    className="w-full h-full object-contain rounded-xl group-hover:scale-105 transition duration-500"
-  />
+                          <img
+                            src={movie.posterUrl}
+                            alt={movie.title}
+                            className="w-full h-full object-contain rounded-xl group-hover:scale-105 transition duration-500"
+                          />
 
-  {/* Gradient */}
-  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent pointer-events-none" />
+                          {/* Gradient */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent pointer-events-none" />
 
-  {/* Category badge */}
-  <div className="absolute top-4 left-4">
-    <span className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium">
-      {movie.category}
-    </span>
-  </div>
+                          {/* Category badge */}
+                          <div className="absolute top-4 left-4">
+                            <span className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium">
+                              {movie.category}
+                            </span>
+                          </div>
 
-  {/* Rating */}
-  <div className="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-xs">
-    <Star
-      size={13}
-      fill="#fbbf24"
-      className="text-yellow-400"
-    />
-    <span>4.8</span>
-  </div>
+                          {/* Rating */}
+                          <div className="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-xs">
+                            <Star
+                              size={13}
+                              fill="#fbbf24"
+                              className="text-yellow-400"
+                            />
+                            <span>4.8</span>
+                          </div>
 
-  {/* Play overlay */}
-  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                          {/* Play overlay */}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                            <div className="w-14 h-14 rounded-full bg-red-600/90 flex items-center justify-center shadow-xl shadow-red-900/40">
+                              <Play size={22} fill="white" />
+                            </div>
+                          </div>
 
-    <div className="w-14 h-14 rounded-full bg-red-600/90 flex items-center justify-center shadow-xl shadow-red-900/40">
-
-      <Play
-        size={22}
-        fill="white"
-      />
-
-    </div>
-
-  </div>
-
-</div>
+                        </div>
 
                         {/* Content */}
                         <div className="p-5">
@@ -447,9 +435,7 @@ function Home() {
 
                           {/* Button */}
                           <button
-                            onClick={() =>
-                              navigate(`/book/${movie._id}`)
-                            }
+                            onClick={() => navigate(`/book/${movie._id}`)}
                             className="mt-5 w-full py-3 bg-red-600 hover:bg-red-500 rounded-xl font-semibold text-sm transition shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"
                           >
                             Book Now
@@ -640,9 +626,12 @@ function Home() {
                   Movies
                 </a>
 
-                <a href="#locations" className="block hover:text-white transition">
+                <button
+                  onClick={() => navigate("/locations")}
+                  className="block hover:text-white transition"
+                >
                   Locations
-                </a>
+                </button>
 
                 <a href="#offers" className="block hover:text-white transition">
                   Offers
