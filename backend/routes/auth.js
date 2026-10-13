@@ -14,7 +14,7 @@ const createToken = (user) => {
   );
 };
 
-// SIGNUP
+// SIGNUP (hamesha normal user banata hai)
 router.post("/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -23,20 +23,24 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Admin wali email se koi signup nahi kar sakta
+    if (cleanEmail === process.env.ADMIN_EMAIL?.trim().toLowerCase()) {
+      return res.status(400).json({ message: "This email is reserved" });
+    }
+
+    const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
       return res.status(400).json({ message: "Email already registered" });
     }
 
-    // Agar password admin ke secret password se match kare to admin, warna user
-    const role = password === process.env.ADMIN_PASSWORD ? "admin" : "user";
-
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
-      email,
+      email: cleanEmail,
       password: hashedPassword,
-      role,
+      role: "user",
     });
 
     res.status(201).json({
@@ -48,12 +52,12 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-// LOGIN
+// LOGIN (user aur admin dono yahin se)
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email: email?.toLowerCase() });
+    const user = await User.findOne({ email: email?.trim().toLowerCase() });
     if (!user) {
       return res.status(400).json({ message: "Invalid email or password" });
     }

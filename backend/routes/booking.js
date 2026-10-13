@@ -9,20 +9,53 @@ const router = express.Router();
 // CREATE a booking (sirf login user)
 router.post("/", protect, async (req, res) => {
   try {
-    const { movie, location, showtime, customerName, contactNo, seats } =
-      req.body;
+    const {
+      movie,
+      location,
+      showDate,
+      showTime,
+      customerName,
+      contactNo,
+      seats,
+    } = req.body;
 
-    if (!movie || !location || !showtime || !customerName || !contactNo || !seats) {
+    if (
+      !movie ||
+      !location ||
+      !showDate ||
+      !showTime ||
+      !customerName ||
+      !contactNo ||
+      !seats
+    ) {
       return res.status(400).json({ message: "Please fill all required fields" });
     }
 
-    // Movie ki jaankari database se lete hain, frontend par bharosa nahi
+    const seatCount = Number(seats);
+    if (!Number.isInteger(seatCount) || seatCount < 1) {
+      return res.status(400).json({ message: "Seats must be a whole number, at least 1" });
+    }
+
     const movieDoc = await Movie.findById(movie);
     if (!movieDoc) {
       return res.status(404).json({ message: "Movie not found" });
     }
 
-    // Cinema ki jaankari bhi database se
+    // Ye show sach mein admin ne is movie ke liye rakha hai ya nahi
+    const showExists = movieDoc.shows.some(
+      (s) => s.date === showDate && s.time === showTime
+    );
+    if (!showExists) {
+      return res
+        .status(400)
+        .json({ message: "Selected show is not available for this movie" });
+    }
+
+    // Guzre hue show ki booking nahi ho sakti
+    if (new Date(`${showDate}T${showTime}:00`) <= new Date()) {
+      return res.status(400).json({ message: "This show has already started" });
+    }
+
     const locationDoc = await Location.findById(location);
     if (!locationDoc) {
       return res.status(404).json({ message: "Selected cinema not found" });
@@ -38,10 +71,11 @@ router.post("/", protect, async (req, res) => {
       locationCity: locationDoc.city,
       locationAddress: locationDoc.address,
       locationMapUrl: locationDoc.mapUrl,
-      showtime,
+      showDate,
+      showTime,
       customerName,
       contactNo,
-      seats: Number(seats),
+      seats: seatCount,
     });
 
     res.status(201).json(booking);

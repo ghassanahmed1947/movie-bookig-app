@@ -9,9 +9,21 @@ import {
   ExternalLink,
   MapPin,
   Phone,
+  CalendarDays,
+  X,
 } from "lucide-react";
 import api from "../api";
 import ConfirmModal from "../components/ConfirmModal";
+import {
+  formatShowDate,
+  formatShowTime,
+  formatShortDate,
+  getUpcomingShows,
+  sortShows,
+  todayString,
+  isUpcoming,
+  datesBetween,
+} from "../utils/shows";
 
 const categories = ["Now Showing", "Coming Soon", "Weekend", "Hot Movies"];
 
@@ -20,6 +32,7 @@ const emptyMovie = {
   description: "",
   posterUrl: "",
   category: "Now Showing",
+  shows: [],
 };
 
 const emptyLocation = {
@@ -45,6 +58,13 @@ function Admin() {
   const [locations, setLocations] = useState([]);
   const [movieForm, setMovieForm] = useState(emptyMovie);
   const [locationForm, setLocationForm] = useState(emptyLocation);
+
+  // Show schedule ke liye
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [timeInput, setTimeInput] = useState("");
+  const [slotTimes, setSlotTimes] = useState([]);
+  const [showError, setShowError] = useState("");
 
   const [message, setMessage] = useState({ type: "", text: "" });
   const [moviesLoading, setMoviesLoading] = useState(true);
@@ -100,15 +120,109 @@ function Admin() {
     setLocationForm({ ...locationForm, [e.target.name]: e.target.value });
   };
 
+  // ---------- Show schedule ----------
+  const addSlotTime = () => {
+    setShowError("");
+
+    if (!timeInput) {
+      setShowError("Pehle time chunen.");
+      return;
+    }
+    if (slotTimes.includes(timeInput)) {
+      setShowError("Ye time pehle se add hai.");
+      return;
+    }
+
+    setSlotTimes([...slotTimes, timeInput].sort());
+    setTimeInput("");
+  };
+
+  const removeSlotTime = (time) => {
+    setSlotTimes(slotTimes.filter((t) => t !== time));
+  };
+
+  // Din ki hadd aur roz ke times se saare shows ek sath bana deta hai
+  const generateShows = () => {
+    setShowError("");
+
+    if (!fromDate) {
+      setShowError("Pehle start date chunen.");
+      return;
+    }
+
+    const endDate = toDate || fromDate;
+    if (endDate < fromDate) {
+      setShowError("End date start date se pehle nahi ho sakti.");
+      return;
+    }
+    if (slotTimes.length === 0) {
+      setShowError("Kam az kam ek show time add karen.");
+      return;
+    }
+
+    const days = datesBetween(fromDate, endDate);
+    if (days.length > 60) {
+      setShowError("Ek dafa mein 60 din se zyada ke shows nahi ban sakte.");
+      return;
+    }
+
+    const generated = [];
+    days.forEach((d) =>
+      slotTimes.forEach((t) => generated.push({ date: d, time: t }))
+    );
+
+    // Guzre hue waqt ke shows shamil nahi karte
+    const upcoming = generated.filter(isUpcoming);
+    const skipped = generated.length - upcoming.length;
+
+    const merged = [...movieForm.shows];
+    upcoming.forEach((s) => {
+      if (!merged.some((m) => m.date === s.date && m.time === s.time)) {
+        merged.push(s);
+      }
+    });
+
+    setMovieForm({ ...movieForm, shows: sortShows(merged) });
+
+    if (skipped > 0) {
+      setShowError(
+        `${skipped} show guzre hue waqt ke the, wo shamil nahi kiye gaye.`
+      );
+    }
+  };
+
+  const removeShow = (show) => {
+    setMovieForm({
+      ...movieForm,
+      shows: movieForm.shows.filter(
+        (s) => !(s.date === show.date && s.time === show.time)
+      ),
+    });
+  };
+
+  const clearShows = () => {
+    setMovieForm({ ...movieForm, shows: [] });
+  };
+
+  // ---------- Add ----------
   const handleAddMovie = async (e) => {
     e.preventDefault();
     setMessage({ type: "", text: "" });
+    setShowError("");
+
+    if (movieForm.shows.length === 0) {
+      setShowError("Kam az kam ek show (date aur time) add karen.");
+      return;
+    }
+
     setSaving(true);
 
     try {
       await api.post("/movies", movieForm);
       setMessage({ type: "success", text: "Movie added successfully!" });
       setMovieForm(emptyMovie);
+      setFromDate("");
+      setToDate("");
       fetchMovies();
     } catch (err) {
       setMessage({
@@ -241,7 +355,7 @@ function Admin() {
           </h2>
           <p className="text-gray-500 mt-2">
             {tab === "movies"
-              ? "Add new movies or remove the ones you don't need."
+              ? "Add new movies with their show schedule, or remove the ones you don't need."
               : "Add the cinemas that use CineBook, or remove them."}
           </p>
         </div>
@@ -371,6 +485,132 @@ function Admin() {
                     </select>
                   </div>
 
+                  {/* SHOW SCHEDULE */}
+                  <div>
+                    <label className={labelClass}>Show Schedule</label>
+
+                    {/* 1. Din ki hadd */}
+                    <p className="text-[11px] text-gray-500 mb-1.5">
+                      1. Kin dinon ke liye (from, to)
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={fromDate}
+                        min={todayString()}
+                        onChange={(e) => {
+                          setFromDate(e.target.value);
+                          if (toDate && e.target.value > toDate) setToDate("");
+                        }}
+                        className={`${inputClass} flex-1 [color-scheme:dark]`}
+                      />
+                      <input
+                        type="date"
+                        value={toDate}
+                        min={fromDate || todayString()}
+                        onChange={(e) => setToDate(e.target.value)}
+                        className={`${inputClass} flex-1 [color-scheme:dark]`}
+                      />
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-1.5">
+                      Sirf ek din ke liye "to" khali chhor den.
+                    </p>
+
+                    {/* 2. Roz ke times */}
+                    <p className="text-[11px] text-gray-500 mt-4 mb-1.5">
+                      2. Roz ke show times
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="time"
+                        value={timeInput}
+                        onChange={(e) => setTimeInput(e.target.value)}
+                        className={`${inputClass} flex-1 [color-scheme:dark]`}
+                      />
+                      <button
+                        type="button"
+                        onClick={addSlotTime}
+                        className="px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium transition flex items-center gap-1.5"
+                      >
+                        <Plus size={15} className="text-red-400" />
+                        Add time
+                      </button>
+                    </div>
+
+                    {slotTimes.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {slotTimes.map((t) => (
+                          <span
+                            key={t}
+                            className="inline-flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-200"
+                          >
+                            {formatShowTime(t)}
+                            <button
+                              type="button"
+                              onClick={() => removeSlotTime(t)}
+                              className="w-5 h-5 rounded-md hover:bg-red-600 flex items-center justify-center text-gray-400 hover:text-white transition"
+                              title="Remove time"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 3. Generate */}
+                    <button
+                      type="button"
+                      onClick={generateShows}
+                      className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-600 border border-red-500/30 text-sm font-medium transition"
+                    >
+                      <CalendarDays size={16} />
+                      Generate shows
+                    </button>
+
+                    {showError && (
+                      <p className="text-xs text-red-400 mt-2">{showError}</p>
+                    )}
+
+                    {/* Ban chuke shows */}
+                    {movieForm.shows.length > 0 && (
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[11px] text-gray-500">
+                            {movieForm.shows.length} shows ready
+                          </p>
+                          <button
+                            type="button"
+                            onClick={clearShows}
+                            className="text-[11px] text-red-400 hover:text-red-300"
+                          >
+                            Clear all
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
+                          {movieForm.shows.map((s) => (
+                            <span
+                              key={`${s.date}-${s.time}`}
+                              className="inline-flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-gray-200"
+                            >
+                              <CalendarDays size={13} className="text-red-400" />
+                              {formatShowDate(s.date)} · {formatShowTime(s.time)}
+                              <button
+                                type="button"
+                                onClick={() => removeShow(s)}
+                                className="w-5 h-5 rounded-md hover:bg-red-600 flex items-center justify-center text-gray-400 hover:text-white transition"
+                                title="Remove show"
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
                     disabled={saving}
@@ -426,9 +666,36 @@ function Admin() {
                       <p className="text-sm text-gray-500 line-clamp-1 mt-1">
                         {movie.description}
                       </p>
+
                       <span className="inline-block mt-2 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-gray-300">
                         {movie.category}
                       </span>
+
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {getUpcomingShows(movie.shows).length === 0 ? (
+                          <span className="text-[11px] text-amber-400">
+                            No upcoming shows
+                          </span>
+                        ) : (
+                          <>
+                            {getUpcomingShows(movie.shows)
+                              .slice(0, 3)
+                              .map((s) => (
+                                <span
+                                  key={`${s.date}-${s.time}`}
+                                  className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/20 text-[11px] text-gray-300"
+                                >
+                                  {formatShortDate(s.date)} · {formatShowTime(s.time)}
+                                </span>
+                              ))}
+                            {getUpcomingShows(movie.shows).length > 3 && (
+                              <span className="px-2 py-1 text-[11px] text-gray-500">
+                                +{getUpcomingShows(movie.shows).length - 3} more
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <button
@@ -507,7 +774,7 @@ function Admin() {
                       required
                     />
                   </div>
-{/* 
+
                   <div>
                     <label className={labelClass}>
                       Phone <span className="normal-case text-gray-600">(optional)</span>
@@ -520,9 +787,9 @@ function Admin() {
                       onChange={handleLocationChange}
                       className={inputClass}
                     />
-                  </div> */}
+                  </div>
 
-                                    <div>
+                  <div>
                     <label className={labelClass}>
                       Google Maps Link{" "}
                       <span className="normal-case text-gray-600">(optional)</span>
@@ -613,9 +880,8 @@ function Admin() {
                                   <span>{loc.phone}</span>
                                 </div>
                               )}
-                            </div>
 
-                             {loc.mapUrl && (
+                              {loc.mapUrl && (
                                 <a
                                   href={loc.mapUrl}
                                   target="_blank"
@@ -626,6 +892,7 @@ function Admin() {
                                   View on Google Maps
                                 </a>
                               )}
+                            </div>
 
                             <button
                               onClick={() =>

@@ -14,7 +14,13 @@ const bookingSchema = new mongoose.Schema(
     locationAddress: { type: String },
     locationMapUrl: { type: String },
 
-    showtime: { type: String, required: true },
+    // Show ki date aur start time
+    showDate: { type: String, required: true }, // YYYY-MM-DD
+    showTime: { type: String, required: true }, // HH:mm
+
+    // Purani bookings ke liye (nayi bookings mein use nahi hota)
+    showtime: { type: String },
+
     customerName: { type: String, required: true },
     contactNo: { type: String, required: true },
     seats: { type: Number, required: true, min: 1 },

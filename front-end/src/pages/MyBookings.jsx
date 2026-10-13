@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import api from "../api";
 import ConfirmModal from "../components/ConfirmModal";
+import { formatShowDate, formatShowTime } from "../utils/shows";
 
 function MyBookings() {
   const navigate = useNavigate();
@@ -74,7 +75,12 @@ function MyBookings() {
     }
   };
 
-  const handleLogout = () => {
+    const bookingWhen = (b) =>
+    b.showDate
+      ? `${formatShowDate(b.showDate)}, ${formatShowTime(b.showTime)}`
+      : b.showtime;
+
+    const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
@@ -214,12 +220,36 @@ function MyBookings() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2.5">
-                    <Clock3 size={16} className="text-red-500 shrink-0" />
-                    <span>
-                      Showtime: <span className="text-white">{b.showtime}</span>
-                    </span>
-                  </div>
+                                   {b.showDate ? (
+                    <>
+                      <div className="flex items-center gap-2.5">
+                        <CalendarDays size={16} className="text-red-500 shrink-0" />
+                        <span>
+                          Show date:{" "}
+                          <span className="text-white">
+                            {formatShowDate(b.showDate)}
+                          </span>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5">
+                        <Clock3 size={16} className="text-red-500 shrink-0" />
+                        <span>
+                          Start time:{" "}
+                          <span className="text-white">
+                            {formatShowTime(b.showTime)}
+                          </span>
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2.5">
+                      <Clock3 size={16} className="text-red-500 shrink-0" />
+                      <span>
+                        Showtime: <span className="text-white">{b.showtime}</span>
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2.5">
                     <Users size={16} className="text-red-500 shrink-0" />
@@ -268,12 +298,12 @@ function MyBookings() {
         © {new Date().getFullYear()} CineBook. All rights reserved.
       </footer>
 
-      <ConfirmModal
+           <ConfirmModal
         open={!!bookingToCancel}
         title="Cancel this booking?"
         message={
           bookingToCancel
-            ? `Your ${bookingToCancel.seats} seat(s) for "${bookingToCancel.movieTitle}" at ${bookingToCancel.showtime}${
+            ? `Your ${bookingToCancel.seats} seat(s) for "${bookingToCancel.movieTitle}" on ${bookingWhen(bookingToCancel)}${
                 bookingToCancel.locationName
                   ? ` (${bookingToCancel.locationName})`
                   : ""

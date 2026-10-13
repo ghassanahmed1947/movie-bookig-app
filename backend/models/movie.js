@@ -1,5 +1,13 @@
 import mongoose from "mongoose";
 
+const showSchema = new mongoose.Schema(
+  {
+    date: { type: String, required: true }, // YYYY-MM-DD
+    time: { type: String, required: true }, // HH:mm (24 ghante)
+  },
+  { _id: false }
+);
+
 const movieSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
@@ -10,10 +18,7 @@ const movieSchema = new mongoose.Schema(
       enum: ["Now Showing", "Coming Soon", "Weekend", "Hot Movies"],
       default: "Now Showing",
     },
-    showtimes: {
-      type: [String],
-      default: ["2:00 AM", "5:00 AM", "8:00 AM"],
-    },
+    shows: { type: [showSchema], default: [] },
   },
   { timestamps: true }
 );

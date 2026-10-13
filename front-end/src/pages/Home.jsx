@@ -19,6 +19,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import api from "../api";
+import { getUpcomingShows, formatShortDate, formatShowTime } from "../utils/shows";
 
 function Home() {
   const [movies, setMovies] = useState([]);
@@ -231,7 +232,7 @@ function Home() {
                 />
               </button>
 
-                            <button
+              <button
                 onClick={() => navigate("/locations")}
                 className="px-6 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition"
               >
@@ -352,8 +353,8 @@ function Home() {
 
                   </div>
 
-                  {/* Cards (horizontal scroll row) */}
-                  <div className="movie-scroll flex gap-6 overflow-x-auto snap-x snap-mandatory pt-3 pb-5">
+                  {/* Cards (horizontal scroll row with custom-scrollbar) */}
+                  <div className="movie-scroll custom-scrollbar flex gap-6 overflow-x-auto snap-x snap-mandatory pt-3 pb-5">
 
                     {categoryMovies.map((movie) => (
 
@@ -411,27 +412,31 @@ function Home() {
                             {movie.description}
                           </p>
 
-                          {/* Showtimes */}
-                          {movie.showtimes?.length > 0 && (
-                            <div className="mt-4">
+                          {/* Next shows */}
+                          <div className="mt-4">
+                            <p className="text-[11px] uppercase tracking-wider text-gray-600 mb-2">
+                              Next Shows
+                            </p>
 
-                              <p className="text-[11px] uppercase tracking-wider text-gray-600 mb-2">
-                                Showtimes
-                              </p>
-
+                            {getUpcomingShows(movie.shows).length > 0 ? (
                               <div className="flex flex-wrap gap-2">
-                                {movie.showtimes.map((time) => (
-                                  <span
-                                    key={time}
-                                    className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300"
-                                  >
-                                    {time}
-                                  </span>
-                                ))}
+                                {getUpcomingShows(movie.shows)
+                                  .slice(0, 3)
+                                  .map((s) => (
+                                    <span
+                                      key={`${s.date}-${s.time}`}
+                                      className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300"
+                                    >
+                                      {formatShortDate(s.date)} · {formatShowTime(s.time)}
+                                    </span>
+                                  ))}
                               </div>
-
-                            </div>
-                          )}
+                            ) : (
+                              <p className="text-xs text-gray-600">
+                                No upcoming shows
+                              </p>
+                            )}
+                          </div>
 
                           {/* Button */}
                           <button
