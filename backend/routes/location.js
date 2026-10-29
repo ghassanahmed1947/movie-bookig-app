@@ -1,5 +1,5 @@
 import express from "express";
-import Location from "../models/location.js";
+import { query, newId, toLocation } from "../db.js";
 import { protect, adminOnly } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -32,8 +32,8 @@ const isValidMapUrl = (value) => {
 // GET saari locations (sab ke liye, shehar aur naam ke hisab se sorted)
 router.get("/", async (req, res) => {
   try {
-    const locations = await Location.find().sort({ city: 1, name: 1 });
-    res.json(locations);
+    const { rows } = await query("SELECT * FROM locations ORDER BY city, name");
+    res.json(rows.map(toLocation));
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -59,28 +59,24 @@ router.post("/", protect, adminOnly, async (req, res) => {
     }
 
     // Ek hi shehar mein same naam ka cinema dobara na ban sake
-    const exists = await Location.findOne({
-      name: name.trim(),
-      city: city.trim(),
-    });
-    if (exists) {
+    const { rows: exists } = await query(
+      "SELECT id FROM locations WHERE name = $1 AND city = $2",
+      [name.trim(), city.trim()]
+    );
+    if (exists.length > 0) {
       return res
         .status(400)
         .json({ message: "This cinema already exists in that city" });
     }
 
-    const location = await Location.create({
-      name,
-      city,
-      address,
-      phone,
-      mapUrl: cleanMapUrl,
-    });
-    res.status(201).json(location);
+    const { rows } = await query(
+      `INSERT INTO locations (id, name, city, address, phone, map_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [newId(), name.trim(), city.trim(), address.trim(), phone?.trim() || "", cleanMapUrl]
+    );
+    res.status(201).json(toLocation(rows[0]));
   } catch (err) {
-    if (err.name === "ValidationError") {
-      return res.status(400).json({ message: err.message });
-    }
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
@@ -88,8 +84,8 @@ router.post("/", protect, adminOnly, async (req, res) => {
 // DELETE a location (sirf admin)
 router.delete("/:id", protect, adminOnly, async (req, res) => {
   try {
-    const location = await Location.findByIdAndDelete(req.params.id);
-    if (!location) {
+    const { rowCount } = await query("DELETE FROM locations WHERE id = $1", [req.params.id]);
+    if (rowCount === 0) {
       return res.status(404).json({ message: "Location not found" });
     }
     res.json({ message: "Location deleted", id: req.params.id });

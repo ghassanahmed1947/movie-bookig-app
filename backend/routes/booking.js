@@ -1,7 +1,5 @@
 import express from "express";
-import Booking from "../models/booking.js";
-import Movie from "../models/movie.js";
-import Location from "../models/location.js";
+import { query, newId, toMovie, toLocation, toBooking } from "../db.js";
 import { protect, adminOnly } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -36,7 +34,9 @@ router.post("/", protect, async (req, res) => {
       return res.status(400).json({ message: "Seats must be a whole number, at least 1" });
     }
 
-    const movieDoc = await Movie.findById(movie);
+    const movieDoc = toMovie(
+      (await query("SELECT * FROM movies WHERE id = $1", [String(movie)])).rows[0]
+    );
     if (!movieDoc) {
       return res.status(404).json({ message: "Movie not found" });
     }
@@ -56,29 +56,28 @@ router.post("/", protect, async (req, res) => {
       return res.status(400).json({ message: "This show has already started" });
     }
 
-    const locationDoc = await Location.findById(location);
+    const locationDoc = toLocation(
+      (await query("SELECT * FROM locations WHERE id = $1", [String(location)])).rows[0]
+    );
     if (!locationDoc) {
       return res.status(404).json({ message: "Selected cinema not found" });
     }
 
-    const booking = await Booking.create({
-      user: req.userId,
-      movie: movieDoc._id,
-      movieTitle: movieDoc.title,
-      posterUrl: movieDoc.posterUrl,
-      location: locationDoc._id,
-      locationName: locationDoc.name,
-      locationCity: locationDoc.city,
-      locationAddress: locationDoc.address,
-      locationMapUrl: locationDoc.mapUrl,
-      showDate,
-      showTime,
-      customerName,
-      contactNo,
-      seats: seatCount,
-    });
+    const { rows } = await query(
+      `INSERT INTO bookings (
+         id, user_id, movie_id, movie_title, poster_url,
+         location_id, location_name, location_city, location_address, location_map_url,
+         show_date, show_time, customer_name, contact_no, seats
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+       RETURNING *`,
+      [
+        newId(), req.userId, movieDoc._id, movieDoc.title, movieDoc.posterUrl,
+        locationDoc._id, locationDoc.name, locationDoc.city, locationDoc.address, locationDoc.mapUrl,
+        showDate, showTime, customerName, contactNo, seatCount,
+      ]
+    );
 
-    res.status(201).json(booking);
+    res.status(201).json(toBooking(rows[0]));
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -87,10 +86,11 @@ router.post("/", protect, async (req, res) => {
 // GET meri bookings (sirf login user ki apni)
 router.get("/my", protect, async (req, res) => {
   try {
-    const bookings = await Booking.find({ user: req.userId }).sort({
-      createdAt: -1,
-    });
-    res.json(bookings);
+    const { rows } = await query(
+      "SELECT * FROM bookings WHERE user_id = $1 ORDER BY created_at DESC",
+      [req.userId]
+    );
+    res.json(rows.map(toBooking));
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -99,8 +99,8 @@ router.get("/my", protect, async (req, res) => {
 // GET saari bookings (sirf admin)
 router.get("/", protect, adminOnly, async (req, res) => {
   try {
-    const bookings = await Booking.find().sort({ createdAt: -1 });
-    res.json(bookings);
+    const { rows } = await query("SELECT * FROM bookings ORDER BY created_at DESC");
+    res.json(rows.map(toBooking));
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -109,12 +109,12 @@ router.get("/", protect, adminOnly, async (req, res) => {
 // CANCEL a booking (sirf wohi user jis ki booking hai)
 router.delete("/:id", protect, async (req, res) => {
   try {
-    const booking = await Booking.findOneAndDelete({
-      _id: req.params.id,
-      user: req.userId,
-    });
+    const { rowCount } = await query(
+      "DELETE FROM bookings WHERE id = $1 AND user_id = $2",
+      [req.params.id, req.userId]
+    );
 
-    if (!booking) {
+    if (rowCount === 0) {
       return res.status(404).json({ message: "Booking not found" });
     }
 

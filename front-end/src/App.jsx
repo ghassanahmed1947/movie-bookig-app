@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 import BookingForm from "./pages/BookingForm";
 import Login from "./pages/Login";
@@ -8,6 +9,13 @@ import MyBookings from "./pages/MyBookings";
 import Locations from "./pages/Location";
 
 function App() {
+  const { pathname } = useLocation();
+
+  // Naye page par jao to upar se shuru ho
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
   return (
     <Routes>
       <Route path="/" element={<Home />} />

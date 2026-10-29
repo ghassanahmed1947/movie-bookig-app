@@ -1,22 +1,130 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Clapperboard,
-  LogOut,
-  Ticket,
-  Clock3,
-  Users,
-  Phone,
-  User,
-  CalendarDays,
-  ArrowLeft,
-  Trash2,
-  MapPin,
-  Navigation,
-} from "lucide-react";
+import { Ticket, MapPin, Navigation, QrCode, X } from "lucide-react";
 import api from "../api";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import ConfirmModal from "../components/ConfirmModal";
-import { formatShowDate, formatShowTime } from "../utils/shows";
+import TicketModal from "../components/TicketModal";
+import { formatShowDate, formatShowTime, isUpcoming } from "../utils/shows";
+
+const stubParts = (date) => {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return {
+    top: `${dt.toLocaleDateString("en-US", { weekday: "short" })}, ${dt.toLocaleDateString("en-US", { month: "short" })}`,
+    day: d,
+  };
+};
+
+function BookingTicket({ b, past, cancelling, onView, onCancel }) {
+  const stub = b.showDate ? stubParts(b.showDate) : null;
+
+  return (
+    <article
+      className={`ticket-sm flex flex-col overflow-hidden rounded-[22px] bg-paper text-paper-ink sm:flex-row ${
+        past ? "opacity-70" : ""
+      }`}
+    >
+      {/* Still */}
+      <div className="relative aspect-video shrink-0 bg-black sm:aspect-auto sm:w-52">
+        <img
+          src={b.posterUrl}
+          alt={b.movieTitle}
+          className={`h-full w-full object-cover ${past ? "grayscale" : ""}`}
+        />
+      </div>
+
+      {/* Details */}
+      <div className="relative min-w-0 flex-1 p-5 sm:p-6">
+        {past && (
+          <span className="stamp absolute right-5 top-5 px-3 py-0.5 text-xl font-black text-velvet/70">
+            Shown
+          </span>
+        )}
+        <h3 className="pr-20 text-4xl font-black leading-[0.95]">{b.movieTitle}</h3>
+
+        {b.locationName && (
+          <div className="mt-3 flex items-start gap-2 text-sm">
+            <MapPin size={15} className="mt-0.5 shrink-0 text-velvet" />
+            <span>
+              <span className="font-semibold">
+                {b.locationName}, {b.locationCity}
+              </span>
+              {b.locationAddress && (
+                <span className="block text-paper-ink/60">{b.locationAddress}</span>
+              )}
+              {b.locationMapUrl && (
+                <a
+                  href={b.locationMapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-1.5 font-medium text-velvet underline-offset-2 hover:underline"
+                >
+                  <Navigation size={12} /> Directions
+                </a>
+              )}
+            </span>
+          </div>
+        )}
+
+        <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-paper-ink/55">Name</dt>
+            <dd className="font-semibold">{b.customerName}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-paper-ink/55">Contact</dt>
+            <dd className="font-semibold">{b.contactNo}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-paper-ink/55">Booked on</dt>
+            <dd className="font-semibold">{new Date(b.createdAt).toLocaleDateString()}</dd>
+          </div>
+        </dl>
+      </div>
+
+      {/* Perforation */}
+      <div className="perf-h mx-5 sm:hidden" />
+      <div className="perf-v my-5 hidden sm:block" />
+
+      {/* Stub */}
+      <div className="flex shrink-0 flex-row items-center justify-between gap-4 bg-paper-2 p-5 sm:w-[198px] sm:flex-col sm:items-stretch sm:justify-center sm:text-center">
+        <div>
+          {stub ? (
+            <>
+              <p className="text-sm text-paper-ink/60">{stub.top}</p>
+              <p className="font-display text-6xl font-black leading-none">{stub.day}</p>
+              <p className="font-display text-xl font-bold">{formatShowTime(b.showTime)}</p>
+            </>
+          ) : (
+            <p className="font-display text-xl font-bold">{b.showtime}</p>
+          )}
+          <p className="mt-1 text-sm">
+            Admit <span className="font-bold">{b.seats}</span>
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={onView}
+            className="btn bg-paper-ink px-4 py-2 text-paper hover:bg-velvet"
+          >
+            <QrCode size={15} /> View ticket
+          </button>
+          <button
+            onClick={onCancel}
+            disabled={cancelling}
+            className="btn px-4 py-1.5 text-velvet hover:bg-velvet/10"
+          >
+            <X size={14} />
+            {cancelling ? "Cancelling…" : "Cancel"}
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
 
 function MyBookings() {
   const navigate = useNavigate();
@@ -28,6 +136,7 @@ function MyBookings() {
   const [error, setError] = useState("");
   const [cancellingId, setCancellingId] = useState(null);
   const [bookingToCancel, setBookingToCancel] = useState(null);
+  const [ticketBooking, setTicketBooking] = useState(null);
 
   useEffect(() => {
     // Login na ho to login page par bhej do
@@ -46,7 +155,7 @@ function MyBookings() {
           navigate("/login");
           return;
         }
-        setError("Could not load your bookings. Please try again.");
+        setError("Your tickets didn't load. Refresh the page to try again.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -68,250 +177,106 @@ function MyBookings() {
         navigate("/login");
         return;
       }
-      setError(err.response?.data?.message || "Could not cancel booking.");
+      setError(err.response?.data?.message || "That booking couldn't be cancelled. Try again.");
     } finally {
       setCancellingId(null);
       setBookingToCancel(null);
     }
   };
 
-    const bookingWhen = (b) =>
+  const bookingWhen = (b) =>
     b.showDate
       ? `${formatShowDate(b.showDate)}, ${formatShowTime(b.showTime)}`
       : b.showtime;
 
-    const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
-  };
+  // Aane wale shows pehle (jaldi wala upar), purane neeche
+  const key = (b) => `${b.showDate || ""}T${b.showTime || ""}`;
+  const upcoming = bookings
+    .filter((b) => !b.showDate || isUpcoming({ date: b.showDate, time: b.showTime }))
+    .sort((a, b) => key(a).localeCompare(key(b)));
+  const past = bookings
+    .filter((b) => b.showDate && !isUpcoming({ date: b.showDate, time: b.showTime }))
+    .sort((a, b) => key(b).localeCompare(key(a)));
+
+  const renderList = (list, isPast) => (
+    <div className="space-y-5">
+      {list.map((b) => (
+        <BookingTicket
+          key={b._id}
+          b={b}
+          past={isPast}
+          cancelling={cancellingId === b._id}
+          onView={() => setTicketBooking(b)}
+          onCancel={() => setBookingToCancel(b)}
+        />
+      ))}
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-white flex flex-col">
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-50 bg-[#080c16]/90 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 h-20 flex items-center justify-between">
-          <div
-            onClick={() => navigate("/")}
-            className="flex items-center gap-3 cursor-pointer"
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-900/30">
-              <Clapperboard size={24} />
-            </div>
-            <h1 className="text-xl font-extrabold tracking-wide">
-              Cine<span className="text-red-500">Book</span>
-            </h1>
-          </div>
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-            >
-              <ArrowLeft size={16} />
-              <span className="hidden sm:inline">Movies</span>
-            </button>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-8">
+        <p className="text-smoke">Hi {user.name?.split(" ")[0] || "there"},</p>
+        <h1 className="mt-1 text-6xl font-black text-paper">Your tickets</h1>
 
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-sm font-medium transition"
-            >
-              <LogOut size={16} />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-      </nav>
+        {error && <div className="notice-err mt-8">{error}</div>}
 
-      {/* CONTENT */}
-      <main className="flex-1 max-w-5xl mx-auto w-full px-5 sm:px-8 py-12">
-        <div className="mb-10">
-          <p className="text-red-500 text-sm font-semibold uppercase tracking-widest mb-2">
-            Welcome, {user.name}
-          </p>
-          <h2 className="text-3xl sm:text-4xl font-bold">My Bookings</h2>
-          <p className="text-gray-500 mt-2">
-            All the movies you have booked.
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-8 p-4 rounded-xl text-sm border bg-red-500/10 border-red-500/30 text-red-400">
-            {error}
-          </div>
-        )}
-
-        {/* Loading */}
         {loading && (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-40 rounded-2xl bg-white/5 animate-pulse" />
+          <div className="mt-10 space-y-5">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-48 animate-pulse rounded-[22px] bg-white/[0.04]" />
             ))}
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && !error && bookings.length === 0 && (
-          <div className="text-center py-20 bg-[#0d1320] border border-white/[0.07] rounded-2xl">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-white/5 flex items-center justify-center mb-5">
-              <Ticket className="text-gray-600" size={28} />
-            </div>
-            <h3 className="text-xl font-semibold">No bookings yet</h3>
-            <p className="text-gray-500 mt-2">
-              Book a movie and it will show up here.
-            </p>
-            <button
-              onClick={() => navigate("/")}
-              className="mt-6 px-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-semibold text-sm transition"
-            >
-              Browse Movies
+          <div className="mt-10 rounded-[22px] border border-dashed border-line px-6 py-20 text-center">
+            <Ticket className="mx-auto text-smoke" size={36} />
+            <h2 className="mt-4 text-3xl font-bold text-paper">No tickets yet</h2>
+            <p className="mt-2 text-smoke">Book a film and your ticket will land here with its QR code.</p>
+            <button onClick={() => navigate("/")} className="btn-brass mt-6">
+              Browse films
             </button>
           </div>
         )}
 
-        {/* Bookings list */}
-        <div className="space-y-4">
-          {bookings.map((b) => (
-            <div
-              key={b._id}
-              className="flex flex-col sm:flex-row gap-5 bg-[#0d1320] border border-white/[0.07] hover:border-red-500/20 rounded-2xl p-5 transition"
-            >
-              <img
-                src={b.posterUrl}
-                alt={b.movieTitle}
-                className="w-full sm:w-28 h-44 sm:h-40 object-contain rounded-xl bg-slate-950 shrink-0"
-              />
+        {upcoming.length > 0 && (
+          <section className="mt-10">
+            <h2 className="mb-5 text-3xl font-extrabold text-paper">
+              Coming up <span className="text-smoke">{upcoming.length}</span>
+            </h2>
+            {renderList(upcoming, false)}
+          </section>
+        )}
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-xl font-bold truncate">{b.movieTitle}</h3>
-                  <span className="shrink-0 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-medium">
-                    Confirmed
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mt-4 text-sm text-gray-400">
-                  {/* Cinema (purani bookings mein nahi hota) */}
-                  {b.locationName && (
-                    <div className="flex items-start gap-2.5 sm:col-span-2">
-                      <MapPin size={16} className="text-red-500 shrink-0 mt-0.5" />
-                      <span>
-                        Cinema:{" "}
-                        <span className="text-white">
-                          {b.locationName}, {b.locationCity}
-                        </span>
-                        {b.locationAddress && (
-                          <span className="block text-xs text-gray-500 mt-0.5">
-                            {b.locationAddress}
-                                                    {b.locationMapUrl && (
-                          <a
-                            href={b.locationMapUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 mt-1.5 text-xs text-red-400 hover:text-red-300"
-                          >
-                            <Navigation size={12} />
-                            View on Google Maps
-                          </a>
-                        )}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  )}
-
-                                   {b.showDate ? (
-                    <>
-                      <div className="flex items-center gap-2.5">
-                        <CalendarDays size={16} className="text-red-500 shrink-0" />
-                        <span>
-                          Show date:{" "}
-                          <span className="text-white">
-                            {formatShowDate(b.showDate)}
-                          </span>
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2.5">
-                        <Clock3 size={16} className="text-red-500 shrink-0" />
-                        <span>
-                          Start time:{" "}
-                          <span className="text-white">
-                            {formatShowTime(b.showTime)}
-                          </span>
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-2.5">
-                      <Clock3 size={16} className="text-red-500 shrink-0" />
-                      <span>
-                        Showtime: <span className="text-white">{b.showtime}</span>
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2.5">
-                    <Users size={16} className="text-red-500 shrink-0" />
-                    <span>
-                      Seats: <span className="text-white">{b.seats}</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <User size={16} className="text-red-500 shrink-0" />
-                    <span>
-                      Name: <span className="text-white">{b.customerName}</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <Phone size={16} className="text-red-500 shrink-0" />
-                    <span>
-                      Contact: <span className="text-white">{b.contactNo}</span>
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-white/10">
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <CalendarDays size={14} />
-                    Booked on {new Date(b.createdAt).toLocaleDateString()}
-                  </div>
-
-                  <button
-                    onClick={() => setBookingToCancel(b)}
-                    disabled={cancellingId === b._id}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-600 border border-red-500/20 text-red-400 hover:text-white text-xs font-medium transition disabled:opacity-60"
-                  >
-                    <Trash2 size={14} />
-                    {cancellingId === b._id ? "Cancelling..." : "Cancel Booking"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        {past.length > 0 && (
+          <section className="mt-14">
+            <h2 className="mb-5 text-3xl font-extrabold text-paper">
+              Already shown <span className="text-smoke">{past.length}</span>
+            </h2>
+            {renderList(past, true)}
+          </section>
+        )}
       </main>
 
-      <footer className="border-t border-white/10 bg-[#050811] py-6 text-center text-xs text-gray-600">
-        © {new Date().getFullYear()} CineBook. All rights reserved.
-      </footer>
+      <Footer />
 
-           <ConfirmModal
+      <TicketModal booking={ticketBooking} onClose={() => setTicketBooking(null)} />
+
+      <ConfirmModal
         open={!!bookingToCancel}
         title="Cancel this booking?"
         message={
           bookingToCancel
             ? `Your ${bookingToCancel.seats} seat(s) for "${bookingToCancel.movieTitle}" on ${bookingWhen(bookingToCancel)}${
-                bookingToCancel.locationName
-                  ? ` (${bookingToCancel.locationName})`
-                  : ""
-              } will be cancelled. This can't be undone.`
+                bookingToCancel.locationName ? ` (${bookingToCancel.locationName})` : ""
+              } will be released. This can't be undone.`
             : ""
         }
-        confirmText="Yes, cancel booking"
-        cancelText="Keep booking"
+        confirmText="Cancel booking"
+        cancelText="Keep it"
         loading={cancellingId !== null}
         onConfirm={confirmCancel}
         onCancel={() => setBookingToCancel(null)}

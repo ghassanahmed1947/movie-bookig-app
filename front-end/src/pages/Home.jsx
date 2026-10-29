@@ -1,692 +1,362 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Clapperboard,
-  Heart,
-  Share2,
-  MessageCircle,
-  MapPin,
-  Phone,
-  Clock3,
-  Star,
-  ChevronRight,
-  Search,
-  Play,
-  Ticket,
-  LogOut,
-  LogIn,
-  UserPlus,
-  ShieldCheck,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Clapperboard, Clock3, MapPin, Search, Ticket } from "lucide-react";
 import api from "../api";
-import { getUpcomingShows, formatShortDate, formatShowTime } from "../utils/shows";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import { BulbFrame } from "../components/Brand";
+import { getUpcomingShows, formatShowTime } from "../utils/shows";
 
+const categories = ["Now Showing", "Coming Soon", "Weekend", "Hot Movies"];
+
+// "Thu 29" jaisa chhota din
+const dayLabel = (date) => {
+  const [y, m, d] = date.split("-").map(Number);
+  const weekday = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" });
+  return `${weekday} ${d}`;
+};
+
+const bookLink = (movieId, show) =>
+  show ? `/book/${movieId}?date=${show.date}&time=${show.time}` : `/book/${movieId}`;
+
+/* ================= HERO MARQUEE ================= */
+function Marquee({ movies, loading }) {
+  const navigate = useNavigate();
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  // Sab se jaldi shuru hone wali 4 films
+  const billed = useMemo(
+    () =>
+      movies
+        .map((m) => ({ ...m, upcoming: getUpcomingShows(m.shows) }))
+        .filter((m) => m.upcoming.length > 0)
+        .sort((a, b) =>
+          `${a.upcoming[0].date}T${a.upcoming[0].time}`.localeCompare(
+            `${b.upcoming[0].date}T${b.upcoming[0].time}`
+          )
+        )
+        .slice(0, 4),
+    [movies]
+  );
+
+  useEffect(() => {
+    if (paused || billed.length < 2) return;
+    const t = setInterval(() => setActive((i) => (i + 1) % billed.length), 5000);
+    return () => clearInterval(t);
+  }, [paused, billed.length]);
+
+  const current = billed[active] || billed[0];
+
+  return (
+    <BulbFrame>
+      <div
+        className="grid gap-4 lg:grid-cols-[1.05fr_1fr]"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onFocus={() => setPaused(true)}
+        onBlur={() => setPaused(false)}
+      >
+        {/* Letterboard */}
+        <div className="letterboard rounded-2xl p-5 sm:p-7">
+          <p className="font-display text-xl font-bold text-brass">Now playing</p>
+
+          <ul className="mt-4">
+            {(loading || billed.length === 0) &&
+              ["Doors open soon", "Check back tonight"].map((line) => (
+                <li key={line} className="flex h-12 items-center font-display text-3xl font-extrabold uppercase tracking-[0.06em] text-paper/40">
+                  {loading ? <span className="h-6 w-2/3 animate-pulse rounded bg-white/10" /> : line}
+                </li>
+              ))}
+
+            {!loading &&
+              billed.map((m, i) => {
+                const first = m.upcoming[0];
+                const sameDay = m.upcoming.filter((s) => s.date === first.date).slice(0, 3);
+                const isActive = i === active;
+                return (
+                  <li key={m._id}>
+                    <button
+                      onClick={() => setActive(i)}
+                      aria-pressed={isActive}
+                      className={`group flex min-h-12 w-full flex-wrap items-center justify-between gap-x-4 py-1.5 text-left transition-colors ${
+                        isActive ? "text-paper" : "text-paper/45 hover:text-paper/80"
+                      }`}
+                    >
+                      <span className="flex items-center gap-3 font-display text-[28px] font-extrabold uppercase leading-none tracking-[0.06em] sm:text-[34px]">
+                        <span
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full transition-colors ${
+                            isActive ? "bg-brass shadow-[0_0_12px_3px_rgb(232_176_75/0.7)]" : "bg-white/15"
+                          }`}
+                        />
+                        <span className="line-clamp-1">{m.title}</span>
+                      </span>
+                      <span className="pl-5 font-display text-lg font-semibold tracking-wide text-brass/90">
+                        {dayLabel(first.date)}{" "}
+                        {sameDay.map((s) => formatShowTime(s.time)).join("  ")}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+          </ul>
+        </div>
+
+        {/* Screen */}
+        <div className="relative flex flex-col justify-end rounded-2xl bg-black/40 p-4 sm:p-6">
+          <div className="beam pointer-events-none absolute inset-x-0 -top-4 h-24" aria-hidden />
+          <div className="screen-glow relative aspect-video overflow-hidden rounded-xl bg-black">
+            {billed.map((m, i) => (
+              <img
+                key={m._id}
+                src={m.posterUrl}
+                alt={i === active ? m.title : ""}
+                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+                  i === active ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            ))}
+            {!current && (
+              <div className="absolute inset-0 grid place-items-center text-smoke">
+                <Clapperboard size={40} />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm text-smoke">{current ? current.category : "Showtimes appear here"}</p>
+              <h2 className="mt-1 line-clamp-1 text-4xl font-extrabold text-paper">
+                {current ? current.title : "The screen is warming up"}
+              </h2>
+            </div>
+            {current && (
+              <button
+                onClick={() => navigate(bookLink(current._id, current.upcoming[0]))}
+                className="btn-brass"
+              >
+                <Ticket size={16} /> Book next show
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </BulbFrame>
+  );
+}
+
+/* ================= MOVIE CARD ================= */
+function MovieCard({ movie }) {
+  const navigate = useNavigate();
+  const upcoming = getUpcomingShows(movie.shows);
+
+  return (
+    <article className="group flex flex-col overflow-hidden rounded-[22px] border border-line bg-ink-2 transition-colors hover:border-brass/40">
+      <div className="relative aspect-video overflow-hidden bg-black">
+        <img
+          src={movie.posterUrl}
+          alt={movie.title}
+          loading="lazy"
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink-2 via-transparent to-transparent" />
+        <span className="absolute left-3 top-3 rounded-full bg-ink/75 px-3 py-1 text-xs text-paper backdrop-blur">
+          {movie.category}
+        </span>
+      </div>
+
+      <div className="flex flex-1 flex-col p-5 pt-3">
+        <h3 className="text-[32px] font-extrabold text-paper">{movie.title}</h3>
+        <p className="mt-2 line-clamp-2 min-h-[2.75rem] text-sm leading-relaxed text-smoke">
+          {movie.description || "Details coming soon."}
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {upcoming.length > 0 ? (
+            upcoming.slice(0, 3).map((s) => (
+              <Link
+                key={`${s.date}-${s.time}`}
+                to={bookLink(movie._id, s)}
+                className="chip text-xs"
+                title="Book this show"
+              >
+                <Clock3 size={13} className="text-brass" />
+                {dayLabel(s.date)}, {formatShowTime(s.time)}
+              </Link>
+            ))
+          ) : (
+            <span className="text-sm text-smoke-2">No shows scheduled yet</span>
+          )}
+          {upcoming.length > 3 && (
+            <span className="self-center text-xs text-smoke">+{upcoming.length - 3} more</span>
+          )}
+        </div>
+
+        <button
+          onClick={() => navigate(`/book/${movie._id}`)}
+          className="btn-ghost mt-5 w-full group-hover:border-brass group-hover:bg-brass group-hover:text-ink"
+        >
+          <Ticket size={16} /> Book seats
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/* ================= PAGE ================= */
 function Home() {
   const [movies, setMovies] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const navigate = useNavigate();
-
-  const user = JSON.parse(localStorage.getItem("user") || "null");
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
-  };
+  const [category, setCategory] = useState("All");
 
   useEffect(() => {
     api
       .get("/movies")
       .then((res) => setMovies(res.data))
-      .catch((err) => {
-        console.error("Failed to load movies:", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .catch((err) => console.error("Failed to load movies:", err))
+      .finally(() => setLoading(false));
+
+    api
+      .get("/locations")
+      .then((res) => setLocations(res.data))
+      .catch(() => setLocations([]));
   }, []);
 
-  const filteredMovies = movies.filter((movie) =>
-    movie.title?.toLowerCase().includes(search.toLowerCase())
+  const searched = movies.filter((m) =>
+    m.title?.toLowerCase().includes(search.toLowerCase())
   );
-
-  const categories = [
-    "Now Showing",
-    "Coming Soon",
-    "Weekend",
-    "Hot Movies",
-  ];
+  const visible = searched.filter((m) => category === "All" || m.category === category);
+  const counts = Object.fromEntries(
+    categories.map((c) => [c, searched.filter((m) => m.category === c).length])
+  );
+  const cities = [...new Set(locations.map((l) => l.city))].sort();
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-white overflow-x-hidden">
+    <div className="flex min-h-screen flex-col overflow-x-hidden">
+      <Navbar search={search} onSearch={setSearch} />
 
-      {/* ================= NAVBAR ================= */}
-      <nav className="sticky top-0 z-50 bg-[#080c16]/90 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-5 sm:px-8">
-          <div className="h-20 flex items-center justify-between">
-
-            {/* LOGO */}
-            <div
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="flex items-center gap-3 cursor-pointer"
-            >
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-900/30">
-                <Clapperboard size={24} />
-              </div>
-
-              <div>
-                <h1 className="text-xl font-extrabold tracking-wide">
-                  Cine<span className="text-red-500">Book</span>
-                </h1>
-                <p className="text-[10px] text-gray-500 tracking-[0.25em] uppercase">
-                  Movie Experience
-                </p>
-              </div>
-            </div>
-
-            {/* NAV LINKS */}
-            <div className="hidden lg:flex items-center gap-8 text-sm">
-              <a
-                href="#movies"
-                className="text-white hover:text-red-400 transition"
-              >
-                Movies
-              </a>
-
-              <button
-                onClick={() => navigate("/locations")}
-                className="text-gray-400 hover:text-white transition"
-              >
-                Locations
-              </button>
-
-              <a
-                href="#offers"
-                className="text-gray-400 hover:text-white transition"
-              >
-                Offers
-              </a>
-
-              <a
-                href="#contact"
-                className="text-gray-400 hover:text-white transition"
-              >
-                Contact
-              </a>
-            </div>
-
-            {/* SEARCH + AUTH */}
-            <div className="flex items-center gap-3">
-              <div className="hidden md:block relative">
-                <Search
-                  size={17}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-                />
-
-                <input
-                  type="text"
-                  placeholder="Search movies..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-52 lg:w-64 bg-white/5 border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm outline-none focus:border-red-500/60 focus:bg-white/10 transition"
-                />
-              </div>
-
-              {user ? (
-                <>
-                  <button
-                    onClick={() => navigate("/my-bookings")}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-                  >
-                    <Ticket size={16} className="text-red-400" />
-                    <span className="hidden sm:inline">My Bookings</span>
-                  </button>
-
-                  {user.role === "admin" && (
-                    <button
-                      onClick={() => navigate("/admin")}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-                    >
-                      <ShieldCheck size={16} className="text-red-400" />
-                      <span className="hidden sm:inline">Admin</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-sm font-medium transition"
-                  >
-                    <LogOut size={16} />
-                    <span className="hidden sm:inline">Logout</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => navigate("/login")}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-                  >
-                    <LogIn size={16} />
-                    Login
-                  </button>
-
-                  <button
-                    onClick={() => navigate("/signup")}
-                    className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-sm font-medium transition"
-                  >
-                    <UserPlus size={16} />
-                    Sign Up
-                  </button>
-                </>
-              )}
-            </div>
-
-          </div>
+      {/* HERO */}
+      <header className="mx-auto w-full max-w-7xl px-4 pb-16 pt-10 sm:px-8 sm:pt-14">
+        <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <h1 className="max-w-2xl text-5xl font-black leading-[0.95] text-paper sm:text-7xl">
+            Pick a film. Pick a show. We'll keep your seat warm.
+          </h1>
+          <p className="max-w-xs text-smoke md:text-right">
+            Live showtimes from {cities.length > 0 ? `${locations.length} cinema${locations.length === 1 ? "" : "s"}` : "our cinemas"}, booked in under a minute.
+          </p>
         </div>
-      </nav>
+        <Marquee movies={movies} loading={loading} />
+      </header>
 
-      {/* ================= HERO ================= */}
-      <section className="relative min-h-[520px] flex items-center overflow-hidden">
-
-        {/* Background glow */}
-        <div className="absolute inset-0 bg-gradient-to-br from-red-950/40 via-[#080c16] to-[#070b14]" />
-
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-red-600/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
-
-        <div className="relative max-w-7xl mx-auto w-full px-5 sm:px-8 py-20">
-          <div className="max-w-3xl">
-
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-sm mb-6">
-              <Play size={14} fill="currentColor" />
-              Your cinema, your way
-            </div>
-
-            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight">
-              Movies feel
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-600">
-                better here.
-              </span>
-            </h2>
-
-            <p className="mt-6 text-gray-400 text-base sm:text-lg max-w-2xl leading-relaxed">
-              Discover the latest blockbusters, choose your favorite seats,
-              and book your perfect movie night in just a few clicks.
-            </p>
-
-            <div className="flex flex-wrap gap-4 mt-8">
-
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("movies")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
-                className="group px-6 py-3.5 bg-red-600 hover:bg-red-500 rounded-xl font-semibold flex items-center gap-2 transition shadow-xl shadow-red-900/30"
-              >
-                Explore Movies
-                <ChevronRight
-                  size={18}
-                  className="group-hover:translate-x-1 transition"
-                />
-              </button>
-
-              <button
-                onClick={() => navigate("/locations")}
-                className="px-6 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition"
-              >
-                Find a Cinema
-              </button>
-
-            </div>
-
-            {/* Stats */}
-            <div className="flex flex-wrap gap-8 mt-12 pt-8 border-t border-white/10">
-
-              <div>
-                <p className="text-2xl font-bold">{movies.length}+</p>
-                <p className="text-xs text-gray-500 mt-1">Movies Available</p>
-              </div>
-
-              <div>
-                <p className="text-2xl font-bold">24/7</p>
-                <p className="text-xs text-gray-500 mt-1">Online Booking</p>
-              </div>
-
-              <div>
-                <p className="text-2xl font-bold">4.9</p>
-                <p className="text-xs text-gray-500 mt-1">Customer Rating</p>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= MOVIES ================= */}
-      <main
-        id="movies"
-        className="max-w-7xl mx-auto px-5 sm:px-8 py-20"
-      >
-
-        {/* Section heading */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
-
+      {/* FILMS */}
+      <main id="movies" className="mx-auto w-full max-w-7xl scroll-mt-24 px-4 pb-20 sm:px-8">
+        <div className="flex flex-col gap-5 border-t border-line pt-10 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-red-500 text-sm font-semibold uppercase tracking-widest mb-2">
-              What's playing
-            </p>
-
-            <h2 className="text-3xl sm:text-4xl font-bold">
-              Find your next movie
-            </h2>
-
-            <p className="text-gray-500 mt-2">
-              Pick a movie and reserve your seats.
-            </p>
+            <h2 className="text-5xl font-black text-paper">Find your film</h2>
+            <p className="mt-2 text-smoke">Tap a showtime to jump straight to booking it.</p>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 text-gray-500 text-sm">
-            <Clock3 size={16} />
-            Fast & easy booking
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by category">
+            {["All", ...categories].map((c) =>
+              c === "All" || counts[c] > 0 ? (
+                <button
+                  key={c}
+                  onClick={() => setCategory(c)}
+                  aria-pressed={category === c}
+                  className="chip"
+                >
+                  {c}
+                  <span className="text-xs opacity-60">
+                    {c === "All" ? searched.length : counts[c]}
+                  </span>
+                </button>
+              ) : null
+            )}
           </div>
-
         </div>
 
-        {/* Mobile Search */}
-        <div className="md:hidden mb-8 relative">
-          <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"
-          />
-
+        {/* Mobile search */}
+        <label className="relative mt-6 block lg:hidden">
+          <span className="sr-only">Search films</span>
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-smoke" />
           <input
-            type="text"
-            placeholder="Search movies..."
+            type="search"
+            placeholder="Search films"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 outline-none focus:border-red-500/60"
+            className="input rounded-full pl-11"
           />
-        </div>
+        </label>
 
-        {/* Loading */}
         {loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((item) => (
-              <div
-                key={item}
-                className="h-[470px] rounded-2xl bg-white/5 animate-pulse"
-              />
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-[420px] animate-pulse rounded-[22px] bg-white/[0.04]" />
             ))}
           </div>
         )}
 
-        {/* Movies */}
-        {!loading && filteredMovies.length > 0 && (
-          <div className="space-y-16">
-
-            {categories.map((category) => {
-              const categoryMovies = filteredMovies.filter(
-                (movie) => movie.category === category
-              );
-
-              if (categoryMovies.length === 0) return null;
-
-              return (
-                <section key={category}>
-
-                  {/* Category title */}
-                  <div className="flex items-center justify-between mb-6">
-
-                    <div className="flex items-center gap-3">
-                      <div className="w-1 h-7 bg-red-500 rounded-full" />
-
-                      <h3 className="text-xl sm:text-2xl font-bold">
-                        {category}
-                      </h3>
-                    </div>
-
-                    <span className="text-xs text-gray-500">
-                      {categoryMovies.length} movies
-                    </span>
-
-                  </div>
-
-                  {/* Cards (horizontal scroll row with custom-scrollbar) */}
-                  <div className="movie-scroll custom-scrollbar flex gap-6 overflow-x-auto snap-x snap-mandatory pt-3 pb-5">
-
-                    {categoryMovies.map((movie) => (
-
-                      <div
-                        key={movie._id}
-                        className="group shrink-0 snap-start w-[85%] sm:w-[calc((100%_-_1.5rem)/2)] lg:w-[calc((100%_-_4.5rem)/4)] bg-[#0d1320] border border-white/[0.07] rounded-2xl overflow-hidden hover:border-red-500/30 hover:-translate-y-2 transition-all duration-300 shadow-xl shadow-black/20"
-                      >
-
-                        {/* Poster */}
-                        <div className="relative h-[180px] overflow-hidden bg-slate-950 flex items-center justify-center p-1">
-
-                          <img
-                            src={movie.posterUrl}
-                            alt={movie.title}
-                            className="w-full h-full object-contain rounded-xl group-hover:scale-105 transition duration-500"
-                          />
-
-                          {/* Gradient */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent pointer-events-none" />
-
-                          {/* Category badge */}
-                          <div className="absolute top-4 left-4">
-                            <span className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium">
-                              {movie.category}
-                            </span>
-                          </div>
-
-                          {/* Rating */}
-                          <div className="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-xs">
-                            <Star
-                              size={13}
-                              fill="#fbbf24"
-                              className="text-yellow-400"
-                            />
-                            <span>4.8</span>
-                          </div>
-
-                          {/* Play overlay */}
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
-                            <div className="w-14 h-14 rounded-full bg-red-600/90 flex items-center justify-center shadow-xl shadow-red-900/40">
-                              <Play size={22} fill="white" />
-                            </div>
-                          </div>
-
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-5">
-
-                          <h4 className="text-lg font-bold truncate">
-                            {movie.title}
-                          </h4>
-
-                          <p className="text-sm text-gray-500 mt-2 line-clamp-2 min-h-[40px]">
-                            {movie.description}
-                          </p>
-
-                          {/* Next shows */}
-                          <div className="mt-4">
-                            <p className="text-[11px] uppercase tracking-wider text-gray-600 mb-2">
-                              Next Shows
-                            </p>
-
-                            {getUpcomingShows(movie.shows).length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {getUpcomingShows(movie.shows)
-                                  .slice(0, 3)
-                                  .map((s) => (
-                                    <span
-                                      key={`${s.date}-${s.time}`}
-                                      className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300"
-                                    >
-                                      {formatShortDate(s.date)} · {formatShowTime(s.time)}
-                                    </span>
-                                  ))}
-                              </div>
-                            ) : (
-                              <p className="text-xs text-gray-600">
-                                No upcoming shows
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Button */}
-                          <button
-                            onClick={() => navigate(`/book/${movie._id}`)}
-                            className="mt-5 w-full py-3 bg-red-600 hover:bg-red-500 rounded-xl font-semibold text-sm transition shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"
-                          >
-                            Book Now
-                            <ChevronRight size={17} />
-                          </button>
-
-                        </div>
-                      </div>
-
-                    ))}
-
-                  </div>
-                </section>
-              );
-            })}
-
+        {!loading && visible.length > 0 && (
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {visible.map((movie) => (
+              <MovieCard key={movie._id} movie={movie} />
+            ))}
           </div>
         )}
 
-        {/* Empty state */}
-        {!loading && filteredMovies.length === 0 && (
-          <div className="text-center py-24">
-
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-white/5 flex items-center justify-center mb-5">
-              <Clapperboard className="text-gray-600" size={28} />
-            </div>
-
-            <h3 className="text-xl font-semibold">
-              No movies found
+        {!loading && visible.length === 0 && (
+          <div className="mt-8 rounded-[22px] border border-dashed border-line px-6 py-20 text-center">
+            <Clapperboard className="mx-auto text-smoke" size={36} />
+            <h3 className="mt-4 text-3xl font-bold text-paper">
+              {movies.length === 0 ? "No films on the bill yet" : "Nothing matches that"}
             </h3>
-
-            <p className="text-gray-500 mt-2">
-              Try searching with a different movie name.
+            <p className="mt-2 text-smoke">
+              {movies.length === 0
+                ? "New films will show up here as soon as they're scheduled."
+                : "Try a different title or switch back to All."}
             </p>
-
+            {(search || category !== "All") && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setCategory("All");
+                }}
+                className="btn-ghost mt-6"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         )}
-
       </main>
 
-      {/* ================= LOCATION ================= */}
-      <section
-        id="locations"
-        className="border-y border-white/10 bg-[#0a0f1b]"
-      >
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 py-20">
-
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-
+      {/* CINEMAS */}
+      {cities.length > 0 && (
+        <section className="border-y border-line bg-velvet-deep/40">
+          <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-12 sm:px-8 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-red-500 text-sm font-semibold uppercase tracking-widest mb-3">
-                Visit us
+              <h2 className="text-4xl font-black text-paper">Playing near you</h2>
+              <p className="mt-2 text-smoke">
+                {locations.length} cinema{locations.length === 1 ? "" : "s"} in {cities.length} cit{cities.length === 1 ? "y" : "ies"}.
               </p>
-
-              <h2 className="text-3xl sm:text-4xl font-bold">
-                Your movie night starts here.
-              </h2>
-
-              <p className="text-gray-500 mt-4 max-w-xl leading-relaxed">
-                Enjoy the latest movies in a comfortable environment with
-                easy online booking and convenient showtimes.
-              </p>
-
-              <div className="mt-7 space-y-4">
-
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center">
-                    <MapPin className="text-red-500" size={20} />
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-gray-500">Our Cinema</p>
-                    <p className="font-medium">
-                      Main Boulevard, Karachi
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center">
-                    <Phone className="text-red-500" size={20} />
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-gray-500">Call us</p>
-                    <p className="font-medium">
-                      +92 300 1234567
-                    </p>
-                  </div>
-                </div>
-
-              </div>
             </div>
-
-            <div className="relative">
-
-              <div className="absolute inset-0 bg-red-600/10 blur-3xl" />
-
-              <div className="relative bg-gradient-to-br from-red-600 to-red-800 rounded-3xl p-8 sm:p-10 overflow-hidden">
-
-                <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10" />
-                <div className="absolute -bottom-20 -left-10 w-56 h-56 rounded-full bg-black/10" />
-
-                <Clapperboard
-                  size={45}
-                  className="mb-8 text-white/80"
-                />
-
-                <h3 className="text-2xl sm:text-3xl font-bold">
-                  Ready for your next movie?
-                </h3>
-
-                <p className="text-red-100 mt-3">
-                  Browse our movies and book your seats today.
-                </p>
-
-                <button
-                  onClick={() =>
-                    document
-                      .getElementById("movies")
-                      ?.scrollIntoView({ behavior: "smooth" })
-                  }
-                  className="mt-7 bg-white text-red-700 hover:bg-gray-100 px-6 py-3 rounded-xl font-semibold transition"
-                >
-                  Browse Movies
-                </button>
-
-              </div>
-
+            <div className="flex flex-wrap gap-2">
+              {cities.map((c) => (
+                <Link key={c} to="/locations" className="chip">
+                  <MapPin size={14} className="text-brass" /> {c}
+                </Link>
+              ))}
+              <Link to="/locations" className="btn-brass">
+                See all cinemas
+              </Link>
             </div>
-
           </div>
+        </section>
+      )}
 
-        </div>
-      </section>
-
-      {/* ================= FOOTER ================= */}
-      <footer
-        id="contact"
-        className="bg-[#050811] border-t border-white/10"
-      >
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 py-14">
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
-
-            {/* Brand */}
-            <div className="md:col-span-2">
-
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center">
-                  <Clapperboard size={21} />
-                </div>
-
-                <span className="text-xl font-bold">
-                  Cine<span className="text-red-500">Book</span>
-                </span>
-              </div>
-
-              <p className="text-gray-500 text-sm leading-relaxed max-w-md mt-5">
-                Your neighborhood cinema, now online. Discover movies,
-                choose your seats and enjoy a seamless booking experience.
-              </p>
-
-              <div className="flex gap-3 mt-6">
-
-                <button className="w-10 h-10 rounded-xl bg-white/5 hover:bg-red-600 border border-white/10 flex items-center justify-center transition">
-                  <Heart size={18} />
-                </button>
-
-                <button className="w-10 h-10 rounded-xl bg-white/5 hover:bg-red-600 border border-white/10 flex items-center justify-center transition">
-                  <Share2 size={18} />
-                </button>
-
-                <button className="w-10 h-10 rounded-xl bg-white/5 hover:bg-red-600 border border-white/10 flex items-center justify-center transition">
-                  <MessageCircle size={18} />
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* Quick links */}
-            <div>
-              <h4 className="font-semibold mb-5">Quick Links</h4>
-
-              <div className="space-y-3 text-sm text-gray-500">
-                <a href="#movies" className="block hover:text-white transition">
-                  Movies
-                </a>
-
-                <button
-                  onClick={() => navigate("/locations")}
-                  className="block hover:text-white transition"
-                >
-                  Locations
-                </button>
-
-                <a href="#offers" className="block hover:text-white transition">
-                  Offers
-                </a>
-
-                <a href="#contact" className="block hover:text-white transition">
-                  Contact
-                </a>
-              </div>
-            </div>
-
-            {/* Contact */}
-            <div>
-              <h4 className="font-semibold mb-5">Contact</h4>
-
-              <div className="space-y-4 text-sm text-gray-500">
-
-                <div className="flex gap-3">
-                  <MapPin size={18} className="text-red-500 shrink-0" />
-                  <span>Main Boulevard, Karachi</span>
-                </div>
-
-                <div className="flex gap-3">
-                  <Phone size={18} className="text-red-500 shrink-0" />
-                  <span>+92 300 1234567</span>
-                </div>
-
-                <div className="flex gap-3">
-                  <MessageCircle size={18} className="text-red-500 shrink-0" />
-                  <span>support@cinebook.com</span>
-                </div>
-
-              </div>
-            </div>
-
-          </div>
-
-          <div className="border-t border-white/10 mt-12 pt-6 flex flex-col sm:flex-row justify-between gap-3 text-xs text-gray-600">
-            <p>
-              © {new Date().getFullYear()} CineBook. All rights reserved.
-            </p>
-
-            <p>
-              Made for movie lovers 🎬
-            </p>
-          </div>
-
-        </div>
-      </footer>
-
+      <Footer />
     </div>
   );
 }

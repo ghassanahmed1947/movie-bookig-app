@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Clapperboard,
-  LogOut,
   Trash2,
   Plus,
   Film,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import api from "../api";
 import ConfirmModal from "../components/ConfirmModal";
+import Navbar from "../components/Navbar";
 import {
   formatShowDate,
   formatShowTime,
@@ -43,10 +43,8 @@ const emptyLocation = {
   mapUrl: "",
 };
 
-const inputClass =
-  "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-500/60 placeholder-gray-600 transition";
-const labelClass =
-  "text-xs uppercase tracking-wide text-gray-500 mb-1.5 block";
+const inputClass = "input";
+const labelClass = "field-label";
 
 function Admin() {
   const navigate = useNavigate();
@@ -285,12 +283,6 @@ function Admin() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
-  };
-
   const cities = [...new Set(locations.map((l) => l.city))];
 
   const modalTitle =
@@ -303,100 +295,62 @@ function Admin() {
     : "";
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-white">
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-50 bg-[#080c16]/90 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-900/30">
-              <Clapperboard size={24} />
-            </div>
-            <div>
-              <h1 className="text-xl font-extrabold tracking-wide">
-                Cine<span className="text-red-500">Book</span>
-              </h1>
-              <p className="text-[10px] text-gray-500 tracking-[0.25em] uppercase">
-                Admin Panel
-              </p>
-            </div>
+    <div className="min-h-screen">
+      <Navbar subtitle="Admin panel" />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
+        <div className="mb-10 flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
+          <div>
+            <p className="text-smoke">Signed in as {user.name}</p>
+            <h1 className="mt-1 text-6xl font-black text-paper">
+              {tab === "movies" ? "Manage films" : "Manage cinemas"}
+            </h1>
+            <p className="mt-3 max-w-lg text-smoke">
+              {tab === "movies"
+                ? "Add films with their show schedule, or take down the ones that have finished their run."
+                : "Add the cinemas that sell tickets on CineBook, or remove them."}
+            </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:block text-sm text-gray-400">
-              {user.name}
-            </span>
-
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-            >
-              <ExternalLink size={16} />
-              <span className="hidden sm:inline">View Site</span>
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-sm font-medium transition"
-            >
-              <LogOut size={16} />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto px-5 sm:px-8 py-12">
-        <div className="mb-8">
-          <p className="text-red-500 text-sm font-semibold uppercase tracking-widest mb-2">
-            Dashboard
-          </p>
-          <h2 className="text-3xl sm:text-4xl font-bold">
-            {tab === "movies" ? "Manage Movies" : "Manage Locations"}
-          </h2>
-          <p className="text-gray-500 mt-2">
-            {tab === "movies"
-              ? "Add new movies with their show schedule, or remove the ones you don't need."
-              : "Add the cinemas that use CineBook, or remove them."}
-          </p>
+          {/* Box office board */}
+          <dl className="grid grid-cols-3 overflow-hidden rounded-2xl border border-line bg-ink-2 text-center">
+            {[
+              ["Films", movies.length],
+              ["Upcoming shows", movies.reduce((n, m) => n + getUpcomingShows(m.shows).length, 0)],
+              ["Cinemas", locations.length],
+            ].map(([label, value]) => (
+              <div key={label} className="border-l border-line px-6 py-4 first:border-l-0">
+                <dd className="font-display text-4xl font-black text-brass">{value}</dd>
+                <dt className="mt-1 text-xs text-smoke">{label}</dt>
+              </div>
+            ))}
+          </dl>
         </div>
 
         {/* TABS */}
-        <div className="inline-flex bg-white/5 border border-white/10 rounded-xl p-1 mb-8">
-          <button
-            onClick={() => switchTab("movies")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${
-              tab === "movies"
-                ? "bg-red-600 text-white shadow-lg shadow-red-900/30"
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            <Film size={16} />
-            Movies
-            <span className="text-xs opacity-70">({movies.length})</span>
-          </button>
-
-          <button
-            onClick={() => switchTab("locations")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition ${
-              tab === "locations"
-                ? "bg-red-600 text-white shadow-lg shadow-red-900/30"
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            <MapPin size={16} />
-            Locations
-            <span className="text-xs opacity-70">({locations.length})</span>
-          </button>
+        <div className="mb-8 inline-flex rounded-full border border-line bg-white/[0.04] p-1" role="tablist">
+          {[
+            ["movies", Film, "Films", movies.length],
+            ["locations", MapPin, "Cinemas", locations.length],
+          ].map(([name, Icon, label, count]) => (
+            <button
+              key={name}
+              role="tab"
+              aria-selected={tab === name}
+              onClick={() => switchTab(name)}
+              className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors ${
+                tab === name ? "bg-brass text-ink" : "text-smoke hover:text-paper"
+              }`}
+            >
+              <Icon size={16} />
+              {label}
+              <span className="text-xs opacity-70">{count}</span>
+            </button>
+          ))}
         </div>
 
         {message.text && (
-          <div
-            className={`mb-8 p-4 rounded-xl text-sm border ${
-              message.type === "success"
-                ? "bg-green-500/10 border-green-500/30 text-green-400"
-                : "bg-red-500/10 border-red-500/30 text-red-400"
-            }`}
-          >
+          <div className={`mb-8 ${message.type === "success" ? "notice-ok" : "notice-err"}`}>
             {message.text}
           </div>
         )}
@@ -406,12 +360,12 @@ function Admin() {
           <div className="grid lg:grid-cols-5 gap-8">
             {/* ADD FORM */}
             <div className="lg:col-span-2">
-              <div className="bg-[#0d1320] border border-white/[0.07] rounded-2xl p-6 lg:sticky lg:top-28">
+              <div className="panel p-6 lg:sticky lg:top-28">
                 <div className="flex items-center gap-2 mb-6">
-                  <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center">
-                    <Plus className="text-red-500" size={18} />
+                  <div className="w-9 h-9 rounded-lg bg-brass/10 flex items-center justify-center">
+                    <Plus className="text-brass" size={18} />
                   </div>
-                  <h3 className="text-lg font-semibold">Add New Movie</h3>
+                  <h3 className="font-display text-2xl font-extrabold text-paper">Add New Movie</h3>
                 </div>
 
                 <form onSubmit={handleAddMovie} className="space-y-4">
@@ -451,21 +405,21 @@ function Admin() {
                       className={inputClass}
                       required
                     />
-                    <p className="text-[11px] text-gray-600 mt-1.5">
+                    <p className="text-[11px] text-smoke-2 mt-1.5">
                       Local image: /images/filename.png, ya koi online image link.
                     </p>
                   </div>
 
                   {movieForm.posterUrl && (
-                    <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3">
+                    <div className="flex items-center gap-3 bg-white/[0.04] border border-line rounded-xl p-3">
                       <img
                         src={movieForm.posterUrl}
                         alt="Preview"
                         onError={(e) => (e.target.style.display = "none")}
                         onLoad={(e) => (e.target.style.display = "block")}
-                        className="w-14 h-20 object-cover rounded-lg bg-slate-950"
+                        className="w-14 h-20 object-cover rounded-lg bg-black"
                       />
-                      <p className="text-xs text-gray-500">Poster preview</p>
+                      <p className="text-xs text-smoke">Poster preview</p>
                     </div>
                   )}
 
@@ -490,7 +444,7 @@ function Admin() {
                     <label className={labelClass}>Show Schedule</label>
 
                     {/* 1. Din ki hadd */}
-                    <p className="text-[11px] text-gray-500 mb-1.5">
+                    <p className="text-[11px] text-smoke mb-1.5">
                       1. Kin dinon ke liye (from, to)
                     </p>
                     <div className="flex gap-2">
@@ -512,12 +466,12 @@ function Admin() {
                         className={`${inputClass} flex-1 [color-scheme:dark]`}
                       />
                     </div>
-                    <p className="text-[11px] text-gray-600 mt-1.5">
+                    <p className="text-[11px] text-smoke-2 mt-1.5">
                       Sirf ek din ke liye "to" khali chhor den.
                     </p>
 
                     {/* 2. Roz ke times */}
-                    <p className="text-[11px] text-gray-500 mt-4 mb-1.5">
+                    <p className="text-[11px] text-smoke mt-4 mb-1.5">
                       2. Roz ke show times
                     </p>
                     <div className="flex gap-2">
@@ -530,9 +484,9 @@ function Admin() {
                       <button
                         type="button"
                         onClick={addSlotTime}
-                        className="px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium transition flex items-center gap-1.5"
+                        className="btn-ghost shrink-0 px-4"
                       >
-                        <Plus size={15} className="text-red-400" />
+                        <Plus size={15} className="text-brass" />
                         Add time
                       </button>
                     </div>
@@ -542,13 +496,13 @@ function Admin() {
                         {slotTimes.map((t) => (
                           <span
                             key={t}
-                            className="inline-flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-200"
+                            className="inline-flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/[0.04] border border-line text-xs text-paper/85"
                           >
                             {formatShowTime(t)}
                             <button
                               type="button"
                               onClick={() => removeSlotTime(t)}
-                              className="w-5 h-5 rounded-md hover:bg-red-600 flex items-center justify-center text-gray-400 hover:text-white transition"
+                              className="w-5 h-5 rounded-md hover:bg-err hover:text-ink flex items-center justify-center text-smoke hover:text-white transition"
                               title="Remove time"
                             >
                               <X size={12} />
@@ -562,27 +516,27 @@ function Admin() {
                     <button
                       type="button"
                       onClick={generateShows}
-                      className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-600 border border-red-500/30 text-sm font-medium transition"
+                      className="btn-ghost mt-4 w-full border-brass/40 text-brass hover:bg-brass hover:text-ink"
                     >
                       <CalendarDays size={16} />
                       Generate shows
                     </button>
 
                     {showError && (
-                      <p className="text-xs text-red-400 mt-2">{showError}</p>
+                      <p className="text-xs text-err mt-2">{showError}</p>
                     )}
 
                     {/* Ban chuke shows */}
                     {movieForm.shows.length > 0 && (
                       <div className="mt-4">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[11px] text-gray-500">
+                          <p className="text-[11px] text-smoke">
                             {movieForm.shows.length} shows ready
                           </p>
                           <button
                             type="button"
                             onClick={clearShows}
-                            className="text-[11px] text-red-400 hover:text-red-300"
+                            className="text-[11px] text-brass hover:text-brass-soft"
                           >
                             Clear all
                           </button>
@@ -592,14 +546,14 @@ function Admin() {
                           {movieForm.shows.map((s) => (
                             <span
                               key={`${s.date}-${s.time}`}
-                              className="inline-flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-gray-200"
+                              className="inline-flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg bg-brass/10 border border-brass/25 text-xs text-paper/85"
                             >
-                              <CalendarDays size={13} className="text-red-400" />
+                              <CalendarDays size={13} className="text-brass" />
                               {formatShowDate(s.date)} · {formatShowTime(s.time)}
                               <button
                                 type="button"
                                 onClick={() => removeShow(s)}
-                                className="w-5 h-5 rounded-md hover:bg-red-600 flex items-center justify-center text-gray-400 hover:text-white transition"
+                                className="w-5 h-5 rounded-md hover:bg-err hover:text-ink flex items-center justify-center text-smoke hover:text-white transition"
                                 title="Remove show"
                               >
                                 <X size={12} />
@@ -614,7 +568,7 @@ function Admin() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-60 transition py-3 rounded-xl font-semibold shadow-lg shadow-red-900/20"
+                    className="btn-brass w-full py-3"
                   >
                     {saving ? "Adding..." : "Add Movie"}
                   </button>
@@ -625,8 +579,8 @@ function Admin() {
             {/* MOVIES LIST */}
             <div className="lg:col-span-3">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-semibold">All Movies</h3>
-                <span className="text-xs text-gray-500">
+                <h3 className="font-display text-2xl font-extrabold text-paper">All Movies</h3>
+                <span className="text-xs text-smoke">
                   {movies.length} total
                 </span>
               </div>
@@ -634,16 +588,16 @@ function Admin() {
               {moviesLoading && (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-28 rounded-2xl bg-white/5 animate-pulse" />
+                    <div key={i} className="h-28 rounded-2xl bg-white/[0.04] animate-pulse" />
                   ))}
                 </div>
               )}
 
               {!moviesLoading && movies.length === 0 && (
-                <div className="text-center py-16 bg-[#0d1320] border border-white/[0.07] rounded-2xl">
-                  <Film className="mx-auto text-gray-600 mb-3" size={32} />
-                  <p className="text-gray-400">No movies yet.</p>
-                  <p className="text-gray-600 text-sm mt-1">
+                <div className="text-center py-16 panel">
+                  <Film className="mx-auto text-smoke-2 mb-3" size={32} />
+                  <p className="text-smoke">No movies yet.</p>
+                  <p className="text-smoke-2 text-sm mt-1">
                     Add your first movie from the form.
                   </p>
                 </div>
@@ -653,27 +607,27 @@ function Admin() {
                 {movies.map((movie) => (
                   <div
                     key={movie._id}
-                    className="flex items-center gap-4 bg-[#0d1320] border border-white/[0.07] hover:border-red-500/20 rounded-2xl p-4 transition"
+                    className="flex items-center gap-4 rounded-2xl border border-line bg-ink-2 p-4 transition-colors hover:border-brass/40"
                   >
                     <img
                       src={movie.posterUrl}
                       alt={movie.title}
-                      className="w-16 h-24 object-cover rounded-lg bg-slate-950 shrink-0"
+                      className="w-24 sm:w-32 aspect-video object-cover rounded-lg bg-black shrink-0"
                     />
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold truncate">{movie.title}</h4>
-                      <p className="text-sm text-gray-500 line-clamp-1 mt-1">
+                      <h4 className="font-display text-2xl font-extrabold text-paper truncate">{movie.title}</h4>
+                      <p className="text-sm text-smoke line-clamp-1 mt-1">
                         {movie.description}
                       </p>
 
-                      <span className="inline-block mt-2 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-gray-300">
+                      <span className="inline-block mt-2 px-2.5 py-1 rounded-full bg-white/[0.04] border border-line text-[11px] text-paper/85">
                         {movie.category}
                       </span>
 
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {getUpcomingShows(movie.shows).length === 0 ? (
-                          <span className="text-[11px] text-amber-400">
+                          <span className="text-[11px] text-warn">
                             No upcoming shows
                           </span>
                         ) : (
@@ -683,13 +637,13 @@ function Admin() {
                               .map((s) => (
                                 <span
                                   key={`${s.date}-${s.time}`}
-                                  className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/20 text-[11px] text-gray-300"
+                                  className="px-2 py-1 rounded-md bg-brass/10 border border-brass/25 text-[11px] text-paper/85"
                                 >
                                   {formatShortDate(s.date)} · {formatShowTime(s.time)}
                                 </span>
                               ))}
                             {getUpcomingShows(movie.shows).length > 3 && (
-                              <span className="px-2 py-1 text-[11px] text-gray-500">
+                              <span className="px-2 py-1 text-[11px] text-smoke">
                                 +{getUpcomingShows(movie.shows).length - 3} more
                               </span>
                             )}
@@ -700,7 +654,7 @@ function Admin() {
 
                     <button
                       onClick={() => setToDelete({ type: "movie", item: movie })}
-                      className="w-10 h-10 rounded-xl bg-red-500/10 hover:bg-red-600 border border-red-500/20 flex items-center justify-center text-red-400 hover:text-white transition shrink-0"
+                      className="w-10 h-10 rounded-full bg-err/10 hover:bg-err border border-err/25 flex items-center justify-center text-err hover:text-ink transition-colors shrink-0"
                       title="Delete movie"
                     >
                       <Trash2 size={17} />
@@ -717,12 +671,12 @@ function Admin() {
           <div className="grid lg:grid-cols-5 gap-8">
             {/* ADD FORM */}
             <div className="lg:col-span-2">
-              <div className="bg-[#0d1320] border border-white/[0.07] rounded-2xl p-6 lg:sticky lg:top-28">
+              <div className="panel p-6 lg:sticky lg:top-28">
                 <div className="flex items-center gap-2 mb-6">
-                  <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center">
-                    <Plus className="text-red-500" size={18} />
+                  <div className="w-9 h-9 rounded-lg bg-brass/10 flex items-center justify-center">
+                    <Plus className="text-brass" size={18} />
                   </div>
-                  <h3 className="text-lg font-semibold">Add New Cinema</h3>
+                  <h3 className="font-display text-2xl font-extrabold text-paper">Add New Cinema</h3>
                 </div>
 
                 <form onSubmit={handleAddLocation} className="space-y-4">
@@ -756,7 +710,7 @@ function Admin() {
                         <option key={c} value={c} />
                       ))}
                     </datalist>
-                    <p className="text-[11px] text-gray-600 mt-1.5">
+                    <p className="text-[11px] text-smoke-2 mt-1.5">
                       Pehle se add shehar suggestion mein aayenge, taake spelling
                       same rahe.
                     </p>
@@ -777,7 +731,7 @@ function Admin() {
 
                   <div>
                     <label className={labelClass}>
-                      Phone <span className="normal-case text-gray-600">(optional)</span>
+                      Phone <span className="normal-case text-smoke-2">(optional)</span>
                     </label>
                     <input
                       type="tel"
@@ -792,7 +746,7 @@ function Admin() {
                   <div>
                     <label className={labelClass}>
                       Google Maps Link{" "}
-                      <span className="normal-case text-gray-600">(optional)</span>
+                      <span className="normal-case text-smoke-2">(optional)</span>
                     </label>
                     <input
                       type="url"
@@ -802,7 +756,7 @@ function Admin() {
                       onChange={handleLocationChange}
                       className={inputClass}
                     />
-                    <p className="text-[11px] text-gray-600 mt-1.5">
+                    <p className="text-[11px] text-smoke-2 mt-1.5">
                       Google Maps mein cinema kholen, Share dabayen, Copy link
                       karen aur yahan paste karen.
                     </p>
@@ -811,7 +765,7 @@ function Admin() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-60 transition py-3 rounded-xl font-semibold shadow-lg shadow-red-900/20"
+                    className="btn-brass w-full py-3"
                   >
                     {saving ? "Adding..." : "Add Cinema"}
                   </button>
@@ -822,8 +776,8 @@ function Admin() {
             {/* LOCATIONS LIST */}
             <div className="lg:col-span-3">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-semibold">All Cinemas</h3>
-                <span className="text-xs text-gray-500">
+                <h3 className="font-display text-2xl font-extrabold text-paper">All Cinemas</h3>
+                <span className="text-xs text-smoke">
                   {locations.length} total
                 </span>
               </div>
@@ -831,16 +785,16 @@ function Admin() {
               {locationsLoading && (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-24 rounded-2xl bg-white/5 animate-pulse" />
+                    <div key={i} className="h-24 rounded-2xl bg-white/[0.04] animate-pulse" />
                   ))}
                 </div>
               )}
 
               {!locationsLoading && locations.length === 0 && (
-                <div className="text-center py-16 bg-[#0d1320] border border-white/[0.07] rounded-2xl">
-                  <MapPin className="mx-auto text-gray-600 mb-3" size={32} />
-                  <p className="text-gray-400">No cinemas yet.</p>
-                  <p className="text-gray-600 text-sm mt-1">
+                <div className="text-center py-16 panel">
+                  <MapPin className="mx-auto text-smoke-2 mb-3" size={32} />
+                  <p className="text-smoke">No cinemas yet.</p>
+                  <p className="text-smoke-2 text-sm mt-1">
                     Add your first cinema from the form.
                   </p>
                 </div>
@@ -850,8 +804,8 @@ function Admin() {
                 {cities.map((city) => (
                   <div key={city}>
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-1 h-5 bg-red-500 rounded-full" />
-                      <h4 className="font-semibold">{city}</h4>
+                      <div className="w-2 h-2 bg-brass rounded-full" />
+                      <h4 className="text-2xl font-extrabold text-paper">{city}</h4>
                     </div>
 
                     <div className="space-y-3">
@@ -860,22 +814,22 @@ function Admin() {
                         .map((loc) => (
                           <div
                             key={loc._id}
-                            className="flex items-start gap-4 bg-[#0d1320] border border-white/[0.07] hover:border-red-500/20 rounded-2xl p-4 transition"
+                            className="flex items-start gap-4 rounded-2xl border border-line bg-ink-2 p-4 transition-colors hover:border-brass/40"
                           >
-                            <div className="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
-                              <Clapperboard className="text-red-500" size={20} />
+                            <div className="w-11 h-11 rounded-xl bg-brass/10 flex items-center justify-center shrink-0">
+                              <Clapperboard className="text-brass" size={20} />
                             </div>
 
                             <div className="flex-1 min-w-0">
-                              <h5 className="font-semibold truncate">{loc.name}</h5>
+                              <h5 className="font-display text-xl font-extrabold text-paper truncate">{loc.name}</h5>
 
-                              <div className="flex items-start gap-2 text-sm text-gray-500 mt-1.5">
+                              <div className="flex items-start gap-2 text-sm text-smoke mt-1.5">
                                 <MapPin size={14} className="shrink-0 mt-0.5" />
                                 <span>{loc.address}</span>
                               </div>
 
                               {loc.phone && (
-                                <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                <div className="flex items-center gap-2 text-sm text-smoke mt-1">
                                   <Phone size={14} className="shrink-0" />
                                   <span>{loc.phone}</span>
                                 </div>
@@ -886,7 +840,7 @@ function Admin() {
                                   href={loc.mapUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 text-sm text-red-400 hover:text-red-300 mt-1.5"
+                                  className="inline-flex items-center gap-2 text-sm text-brass hover:text-brass-soft mt-1.5"
                                 >
                                   <ExternalLink size={14} className="shrink-0" />
                                   View on Google Maps
@@ -898,7 +852,7 @@ function Admin() {
                               onClick={() =>
                                 setToDelete({ type: "location", item: loc })
                               }
-                              className="w-10 h-10 rounded-xl bg-red-500/10 hover:bg-red-600 border border-red-500/20 flex items-center justify-center text-red-400 hover:text-white transition shrink-0"
+                              className="w-10 h-10 rounded-full bg-err/10 hover:bg-err border border-err/25 flex items-center justify-center text-err hover:text-ink transition-colors shrink-0"
                               title="Delete cinema"
                             >
                               <Trash2 size={17} />

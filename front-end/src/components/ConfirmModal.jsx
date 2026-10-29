@@ -26,49 +26,37 @@ function ConfirmModal({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
-      role="dialog"
-      aria-modal="true"
-    >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" role="dialog" aria-modal="true">
       {/* Dark backdrop (is par click karne se bhi band hoga) */}
-      <div
-        onClick={() => !loading && onCancel()}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
+      <div onClick={() => !loading && onCancel()} className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
 
-      {/* Popup box */}
-      <div className="relative w-full max-w-md bg-[#0d1320] border border-white/10 rounded-2xl p-6 sm:p-7 shadow-2xl shadow-black/50">
+      <div className="panel rise-in relative w-full max-w-md p-7 shadow-2xl shadow-black/60">
         <button
           onClick={onCancel}
           disabled={loading}
-          className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition disabled:opacity-50"
+          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-white/5 text-smoke transition-colors hover:bg-white/10 hover:text-paper disabled:opacity-50"
+          aria-label="Close"
         >
           <X size={16} />
         </button>
 
-        <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
-          <AlertTriangle className="text-red-500" size={26} />
+        <div className="mb-5 grid h-12 w-12 place-items-center rounded-full bg-err/10 text-err">
+          <AlertTriangle size={22} />
         </div>
 
-        <h3 className="text-xl font-bold">{title}</h3>
-        <p className="text-sm text-gray-400 leading-relaxed mt-2">{message}</p>
+        <h3 className="text-3xl font-extrabold text-paper">{title}</h3>
+        <p className="mt-3 text-sm leading-relaxed text-smoke">{message}</p>
 
-        <div className="flex flex-col-reverse sm:flex-row gap-3 mt-7">
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold transition disabled:opacity-50"
-          >
+        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row">
+          <button onClick={onCancel} disabled={loading} className="btn-ghost flex-1 py-3">
             {cancelText}
           </button>
-
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-sm font-semibold shadow-lg shadow-red-900/30 transition disabled:opacity-60"
+            className="btn flex-1 bg-err py-3 text-ink hover:bg-err/85"
           >
-            {loading ? "Please wait..." : confirmText}
+            {loading ? "Please wait…" : confirmText}
           </button>
         </div>
       </div>
