@@ -1,5 +1,7 @@
 import express from "express";
-import Movie from "../models/movie.js";
+import { query, newId, toMovie } from "../db.js";
+
+const CATEGORIES = ["Now Showing", "Coming Soon", "Weekend", "Hot Movies"];
 import { protect, adminOnly } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -36,8 +38,8 @@ const cleanShows = (shows) => {
 // GET all movies (sab ke liye)
 router.get("/", async (req, res) => {
   try {
-    const movies = await Movie.find().sort({ createdAt: -1 });
-    res.json(movies);
+    const { rows } = await query("SELECT * FROM movies ORDER BY created_at DESC");
+    res.json(rows.map(toMovie));
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -46,9 +48,9 @@ router.get("/", async (req, res) => {
 // GET single movie by ID (sab ke liye)
 router.get("/:id", async (req, res) => {
   try {
-    const movie = await Movie.findById(req.params.id);
-    if (!movie) return res.status(404).json({ message: "Movie not found" });
-    res.json(movie);
+    const { rows } = await query("SELECT * FROM movies WHERE id = $1", [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ message: "Movie not found" });
+    res.json(toMovie(rows[0]));
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -71,18 +73,19 @@ router.post("/", protect, adminOnly, async (req, res) => {
       return res.status(400).json({ message: "Please add at least one show (date and time)" });
     }
 
-    const movie = await Movie.create({
-      title,
-      description,
-      posterUrl,
-      category,
-      shows: cleanedShows,
-    });
-    res.status(201).json(movie);
-  } catch (err) {
-    if (err.name === "ValidationError") {
-      return res.status(400).json({ message: err.message });
+    const cat = category || "Now Showing";
+    if (!CATEGORIES.includes(cat)) {
+      return res.status(400).json({ message: "Unknown category" });
     }
+
+    const { rows } = await query(
+      `INSERT INTO movies (id, title, description, poster_url, category, shows)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [newId(), title.trim(), description || "", posterUrl.trim(), cat, JSON.stringify(cleanedShows)]
+    );
+    res.status(201).json(toMovie(rows[0]));
+  } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
@@ -90,8 +93,8 @@ router.post("/", protect, adminOnly, async (req, res) => {
 // DELETE a movie (sirf admin)
 router.delete("/:id", protect, adminOnly, async (req, res) => {
   try {
-    const movie = await Movie.findByIdAndDelete(req.params.id);
-    if (!movie) return res.status(404).json({ message: "Movie not found" });
+    const { rowCount } = await query("DELETE FROM movies WHERE id = $1", [req.params.id]);
+    if (rowCount === 0) return res.status(404).json({ message: "Movie not found" });
     res.json({ message: "Movie deleted", id: req.params.id });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });

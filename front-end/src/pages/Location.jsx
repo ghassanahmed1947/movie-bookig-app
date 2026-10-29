@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clapperboard, MapPin, Phone, Ticket, ArrowLeft , Navigation} from "lucide-react";
+import { MapPin, Phone, Navigation, Film } from "lucide-react";
 import api from "../api";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 
 function Locations() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user") || "null");
 
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,7 +17,7 @@ function Locations() {
     api
       .get("/locations")
       .then((res) => setLocations(res.data))
-      .catch(() => setError("Could not load cinemas. Please try again."))
+      .catch(() => setError("Cinemas didn't load. Refresh the page to try again."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -30,164 +31,100 @@ function Locations() {
     }));
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-white flex flex-col">
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-50 bg-[#080c16]/90 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 h-20 flex items-center justify-between">
-          <div
-            onClick={() => navigate("/")}
-            className="flex items-center gap-3 cursor-pointer"
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-900/30">
-              <Clapperboard size={24} />
-            </div>
-            <h1 className="text-xl font-extrabold tracking-wide">
-              Cine<span className="text-red-500">Book</span>
-            </h1>
-          </div>
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
 
-          <div className="flex items-center gap-3">
-            {user && (
-              <button
-                onClick={() => navigate("/my-bookings")}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-              >
-                <Ticket size={16} className="text-red-400" />
-                <span className="hidden sm:inline">My Bookings</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-            >
-              <ArrowLeft size={16} />
-              <span className="hidden sm:inline">Movies</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* CONTENT */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-5 sm:px-8 py-12">
-        <div className="mb-10">
-          <p className="text-red-500 text-sm font-semibold uppercase tracking-widest mb-2">
-            Find a cinema
-          </p>
-          <h2 className="text-3xl sm:text-4xl font-bold">Our Locations</h2>
-          <p className="text-gray-500 mt-2">
-            All the cinemas where you can book your seats.
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-8 p-4 rounded-xl text-sm border bg-red-500/10 border-red-500/30 text-red-400">
-            {error}
-          </div>
-        )}
-
-        {/* City filter */}
-        {!loading && cities.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-10">
-            {["All", ...cities].map((c) => (
-              <button
-                key={c}
-                onClick={() => setSelectedCity(c)}
-                className={`px-4 py-2 rounded-full text-sm border transition ${
-                  selectedCity === c
-                    ? "bg-red-600 border-red-600 text-white"
-                    : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Loading */}
-        {loading && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-40 rounded-2xl bg-white/5 animate-pulse" />
-            ))}
-          </div>
-        )}
-
-        {/* Empty */}
-        {!loading && !error && locations.length === 0 && (
-          <div className="text-center py-20 bg-[#0d1320] border border-white/[0.07] rounded-2xl">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-white/5 flex items-center justify-center mb-5">
-              <MapPin className="text-gray-600" size={28} />
-            </div>
-            <h3 className="text-xl font-semibold">No cinemas yet</h3>
-            <p className="text-gray-500 mt-2">
-              Cinemas will appear here once they are added.
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-12 sm:px-8">
+        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+          <div>
+            <h1 className="text-6xl font-black text-paper sm:text-7xl">Our cinemas</h1>
+            <p className="mt-3 max-w-md text-smoke">
+              Every screen you can book on CineBook, sorted by city.
             </p>
           </div>
+
+          {!loading && cities.length > 1 && (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by city">
+              {["All", ...cities].map((c) => (
+                <button key={c} onClick={() => setSelectedCity(c)} aria-pressed={selectedCity === c} className="chip">
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {error && <div className="notice-err mt-8">{error}</div>}
+
+        {loading && (
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-56 animate-pulse rounded-[22px] bg-white/[0.04]" />
+            ))}
+          </div>
         )}
 
-        {/* Grouped by city */}
-        <div className="space-y-12">
+        {!loading && !error && locations.length === 0 && (
+          <div className="mt-10 rounded-[22px] border border-dashed border-line px-6 py-20 text-center">
+            <MapPin className="mx-auto text-smoke" size={36} />
+            <h2 className="mt-4 text-3xl font-bold text-paper">No cinemas yet</h2>
+            <p className="mt-2 text-smoke">Cinemas will appear here once they're added.</p>
+          </div>
+        )}
+
+        <div className="mt-12 space-y-14">
           {grouped.map(({ city, items }) => (
             <section key={city}>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-1 h-7 bg-red-500 rounded-full" />
-                  <h3 className="text-xl sm:text-2xl font-bold">{city}</h3>
-                </div>
-                <span className="text-xs text-gray-500">
+              <div className="mb-6 flex items-baseline gap-4 border-b border-line pb-3">
+                <h2 className="text-4xl font-black text-paper">{city}</h2>
+                <span className="text-sm text-smoke">
                   {items.length} {items.length === 1 ? "cinema" : "cinemas"}
                 </span>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((loc) => (
-                  <div
+                  <article
                     key={loc._id}
-                    className="bg-[#0d1320] border border-white/[0.07] hover:border-red-500/30 rounded-2xl p-6 transition shadow-xl shadow-black/20"
+                    className="group relative flex flex-col overflow-hidden rounded-[22px] border border-line bg-ink-2 p-6 transition-colors hover:border-brass/40"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center mb-4">
-                      <Clapperboard className="text-red-500" size={22} />
+                    {/* Chhota sa marquee sign */}
+                    <div className="mb-5 flex items-center gap-1.5" aria-hidden>
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <span
+                          key={i}
+                          className="h-1.5 w-1.5 rounded-full bg-brass/30 transition-colors duration-300 group-hover:bg-brass"
+                          style={{ transitionDelay: `${i * 40}ms` }}
+                        />
+                      ))}
                     </div>
 
-                    <h4 className="text-lg font-bold">{loc.name}</h4>
+                    <h3 className="text-3xl font-extrabold text-paper">{loc.name}</h3>
 
-                    <div className="mt-4 space-y-3 text-sm text-gray-400">
-                      <div className="flex items-start gap-2.5">
-                        <MapPin size={16} className="text-red-500 shrink-0 mt-0.5" />
-                        <span>{loc.address}</span>
-                      </div>
-
+                    <div className="mt-4 space-y-2.5 text-sm text-smoke">
+                      <p className="flex items-start gap-2.5">
+                        <MapPin size={16} className="mt-0.5 shrink-0 text-brass" />
+                        {loc.address}
+                      </p>
                       {loc.phone && (
-                        <div className="flex items-center gap-2.5">
-                          <Phone size={16} className="text-red-500 shrink-0" />
-                          <span>{loc.phone}</span>
-                        </div>
-                      )}
-                    </div>
-
-                                       <div className="mt-6 flex gap-3">
-                      {loc.mapUrl && (
-                        <a
-                          href={loc.mapUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-600 hover:bg-red-500 rounded-xl text-sm font-medium transition"
-                        >
-                          <Navigation size={15} />
-                          Get Directions
+                        <a href={`tel:${loc.phone}`} className="flex items-center gap-2.5 hover:text-paper">
+                          <Phone size={16} className="shrink-0 text-brass" />
+                          {loc.phone}
                         </a>
                       )}
+                    </div>
 
-                      <button
-                        onClick={() => navigate("/")}
-                        className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium transition"
-                      >
-                        Book a movie
+                    <div className="mt-auto flex gap-2 pt-6">
+                      {loc.mapUrl && (
+                        <a href={loc.mapUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost flex-1 px-3">
+                          <Navigation size={15} /> Directions
+                        </a>
+                      )}
+                      <button onClick={() => navigate("/")} className="btn-brass flex-1 px-3">
+                        <Film size={15} /> See films
                       </button>
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
             </section>
@@ -195,9 +132,7 @@ function Locations() {
         </div>
       </main>
 
-      <footer className="border-t border-white/10 bg-[#050811] py-6 text-center text-xs text-gray-600">
-        © {new Date().getFullYear()} CineBook. All rights reserved.
-      </footer>
+      <Footer />
     </div>
   );
 }

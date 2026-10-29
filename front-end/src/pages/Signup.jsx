@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Mail, Lock, Clapperboard } from "lucide-react";
+import { User, Mail, Lock } from "lucide-react";
 import api from "../api";
+import AuthLayout from "../components/AuthLayout";
 
 function Signup() {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -31,113 +32,80 @@ function Signup() {
         navigate("/");
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Signup failed");
+      setError(err.response?.data?.message || "Sign up didn't work. Check your details and try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-white flex items-center justify-center px-4 relative overflow-hidden">
-      <div className="absolute -top-32 -right-32 w-96 h-96 bg-red-600/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
+    <AuthLayout title="Join CineBook" subtitle="One account for every cinema, every show.">
+      {error && <div className="notice-err mb-5">{error}</div>}
 
-      <div className="relative w-full max-w-md">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-900/30">
-            <Clapperboard size={24} />
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label htmlFor="name" className="field-label">Full name</label>
+          <div className="field">
+            <User className="shrink-0 text-smoke" size={18} />
+            <input
+              id="name"
+              type="text"
+              name="name"
+              autoComplete="name"
+              placeholder="Your name"
+              value={form.name}
+              onChange={handleChange}
+              required
+            />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-wide">
-            Cine<span className="text-red-500">Book</span>
-          </h1>
         </div>
 
-        <div className="bg-[#0d1320] border border-white/[0.07] rounded-2xl p-8 shadow-xl shadow-black/30">
-          <h2 className="text-2xl font-bold">Create account</h2>
-          <p className="text-gray-500 text-sm mt-1 mb-6">
-            Sign up to book your favorite movies.
-          </p>
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm p-3 rounded-lg mb-5">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs uppercase tracking-wide text-gray-500 mb-1.5 block">
-                Full Name
-              </label>
-              <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition">
-                <User className="text-gray-500 mr-3" size={18} />
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Enter your name"
-                  value={form.name}
-                  onChange={handleChange}
-                  className="w-full bg-transparent outline-none text-sm placeholder-gray-600"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs uppercase tracking-wide text-gray-500 mb-1.5 block">
-                Email
-              </label>
-              <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition">
-                <Mail className="text-gray-500 mr-3" size={18} />
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="you@example.com"
-                  value={form.email}
-                  onChange={handleChange}
-                  className="w-full bg-transparent outline-none text-sm placeholder-gray-600"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs uppercase tracking-wide text-gray-500 mb-1.5 block">
-                Password
-              </label>
-              <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition">
-                <Lock className="text-gray-500 mr-3" size={18} />
-                <input
-                  type="password"
-                  name="password"
-                  placeholder="Enter your password"
-                  value={form.password}
-                  onChange={handleChange}
-                  className="w-full bg-transparent outline-none text-sm placeholder-gray-600"
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-60 transition py-3 rounded-xl font-semibold shadow-lg shadow-red-900/20"
-            >
-              {loading ? "Creating account..." : "Sign Up"}
-            </button>
-          </form>
-
-          <p className="text-center text-sm text-gray-500 mt-6">
-            Already have an account?{" "}
-            <Link to="/login" className="text-red-400 hover:text-red-300 font-medium">
-              Login
-            </Link>
-          </p>
+        <div>
+          <label htmlFor="email" className="field-label">Email</label>
+          <div className="field">
+            <Mail className="shrink-0 text-smoke" size={18} />
+            <input
+              id="email"
+              type="email"
+              name="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
         </div>
-      </div>
-    </div>
+
+        <div>
+          <label htmlFor="password" className="field-label">Password</label>
+          <div className="field">
+            <Lock className="shrink-0 text-smoke" size={18} />
+            <input
+              id="password"
+              type="password"
+              name="password"
+              autoComplete="new-password"
+              placeholder="Choose a password"
+              value={form.password}
+              onChange={handleChange}
+              required
+            />
+          </div>
+        </div>
+
+        <button type="submit" disabled={loading} className="btn-brass w-full py-3.5 text-base">
+          {loading ? "Creating account…" : "Create account"}
+        </button>
+      </form>
+
+      <p className="mt-8 text-sm text-smoke">
+        Already have an account?{" "}
+        <Link to="/login" className="font-semibold text-brass hover:text-brass-soft">
+          Log in
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }
 

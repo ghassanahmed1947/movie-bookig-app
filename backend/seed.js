@@ -1,28 +1,18 @@
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import Movie from "./models/movie.js";
+// Demo films, cinemas aur demo user database mein daalta hai.
+// Chalane ka tareeqa:  npm run seed
+// Dobara chalayen to showtimes aaj se aage ke 21 din ke liye refresh ho jate hain.
+import "dotenv/config";
+import { connectDB, pool } from "./db.js";
+import { seedDemo } from "./demo-data.js";
 
-dotenv.config();
+const run = async () => {
+  await connectDB();
+  await seedDemo();
+};
 
-// Abhi khali hai. Movies ab admin panel se add hoti hain.
-// Kabhi ek sath bohat si movies daalni hon to yahan likh kar `node seed.js` chalayen.
-const sampleMovies = [];
-
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(async () => {
-    console.log("MongoDB connected for seeding");
-
-    if (sampleMovies.length === 0) {
-      console.log("sampleMovies is empty, nothing to add.");
-      process.exit();
-    }
-
-    await Movie.insertMany(sampleMovies);
-    console.log(`${sampleMovies.length} movies added successfully!`);
-    process.exit();
-  })
+run()
   .catch((err) => {
     console.error("Seeding error:", err);
-    process.exit(1);
-  });
+    process.exitCode = 1;
+  })
+  .finally(() => pool.end());

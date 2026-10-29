@@ -1,497 +1,62 @@
-// import { useEffect, useState } from "react";
-// import { useParams, useNavigate } from "react-router-dom";
-// import {
-//   User,
-//   Phone,
-//   Users,
-//   Clock,
-//   Clapperboard,
-//   ArrowLeft,
-//   CheckCircle2,
-//   Ticket,
-//   MapPin,
-//   Film,
-//   Navigation,
-// } from "lucide-react";
-// import api from "../api";
-// import { formatShowDate, formatShowTime, getUpcomingShows } from "../utils/shows";
-
-// function BookingForm() {
-//   const { id } = useParams();
-//   const navigate = useNavigate();
-//   const token = localStorage.getItem("token");
-//   const user = JSON.parse(localStorage.getItem("user") || "{}");
-
-//   const [movie, setMovie] = useState(null);
-//   const [locations, setLocations] = useState([]);
-//   const [locLoaded, setLocLoaded] = useState(false);
-//   const [form, setForm] = useState({
-//     showDate: "",
-//     showTime: "",
-//     city: "",
-//     locationId: "",
-//     customerName: user.name || "",
-//     contactNo: "",
-//     seats: 1,
-//   });
-//   const [message, setMessage] = useState("");
-//   const [loadError, setLoadError] = useState("");
-//   const [saving, setSaving] = useState(false);
-//   const [success, setSuccess] = useState(false);
-//   const availableShows = getUpcomingShows(movie?.shows || []);
-//   const availableDates = [...new Set(availableShows.map((show) => show.date))];
-//   const dateShows = availableShows.filter((show) => show.date === form.showDate);
-
-//   useEffect(() => {
-//     // Login ke baghair booking nahi ho sakti
-//     if (!token) {
-//       navigate("/login");
-//       return;
-//     }
-
-//     api
-//       .get(`/movies/${id}`)
-//       .then((res) => {
-//         setMovie(res.data);
-//         const shows = getUpcomingShows(res.data.shows || []);
-//         setForm((f) => ({
-//           ...f,
-//           showDate: shows[0]?.date || "",
-//           showTime: shows[0]?.time || "",
-//         }));
-//       })
-//       .catch(() => setLoadError("Movie not found."));
-
-//     api
-//       .get("/locations")
-//       .then((res) => setLocations(res.data))
-//       .catch(() => setLocations([]))
-//       .finally(() => setLocLoaded(true));
-//   }, [id]);
-
-//   const handleChange = (e) => {
-//     setForm({ ...form, [e.target.name]: e.target.value });
-//   };
-
-//   // Shehar badalne par cinema reset ho jata hai
-//   const handleCityChange = (e) => {
-//     setForm({ ...form, city: e.target.value, locationId: "" });
-//   };
-
-//   const cities = [...new Set(locations.map((l) => l.city))].sort();
-//   const cityCinemas = locations.filter((l) => l.city === form.city);
-//   const selectedCinema = locations.find((l) => l._id === form.locationId);
-//   const noCinemas = locLoaded && locations.length === 0;
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     setMessage("");
-//     setSaving(true);
-
-//     try {
-//       await api.post("/bookings", {
-//         movie: id,
-//         location: form.locationId,
-//         showDate: form.showDate,
-//         showTime: form.showTime,
-//         customerName: form.customerName,
-//         contactNo: form.contactNo,
-//         seats: Number(form.seats),
-//       });
-//       setSuccess(true);
-//     } catch (err) {
-//       // Token expire ho gaya to dobara login karwao
-//       if (err.response?.status === 401) {
-//         localStorage.removeItem("token");
-//         localStorage.removeItem("user");
-//         navigate("/login");
-//         return;
-//       }
-//       setMessage(err.response?.data?.message || "Booking failed");
-//     } finally {
-//       setSaving(false);
-//     }
-//   };
-
-//   if (loadError) {
-//     return (
-//       <div className="min-h-screen bg-[#070b14] flex flex-col items-center justify-center text-white gap-4">
-//         <p className="text-gray-400">{loadError}</p>
-//         <button
-//           onClick={() => navigate("/")}
-//           className="px-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-semibold text-sm transition"
-//         >
-//           Back to Movies
-//         </button>
-//       </div>
-//     );
-//   }
-
-//   if (!movie) {
-//     return (
-//       <div className="min-h-screen bg-[#070b14] flex items-center justify-center text-white">
-//         <p className="text-gray-400">Loading movie details...</p>
-//       </div>
-//     );
-//   }
-
-//   const fieldBox =
-//     "flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition";
-//   const labelClass =
-//     "text-xs uppercase tracking-wide text-gray-500 mb-1.5 block";
-
-//   return (
-//     <div className="min-h-screen bg-[#070b14] text-white flex flex-col">
-//       {/* NAVBAR */}
-//       <nav className="sticky top-0 z-50 bg-[#080c16]/90 backdrop-blur-xl border-b border-white/10">
-//         <div className="max-w-7xl mx-auto px-5 sm:px-8 h-20 flex items-center justify-between">
-//           <div
-//             onClick={() => navigate("/")}
-//             className="flex items-center gap-3 cursor-pointer"
-//           >
-//             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-900/30">
-//               <Clapperboard size={24} />
-//             </div>
-//             <h1 className="text-xl font-extrabold tracking-wide">
-//               Cine<span className="text-red-500">Book</span>
-//             </h1>
-//           </div>
-
-//           <div className="flex items-center gap-3">
-//             <button
-//               onClick={() => navigate("/my-bookings")}
-//               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-//             >
-//               <Ticket size={16} className="text-red-400" />
-//               <span className="hidden sm:inline">My Bookings</span>
-//             </button>
-
-//             <button
-//               onClick={() => navigate("/")}
-//               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-//             >
-//               <ArrowLeft size={16} />
-//               <span className="hidden sm:inline">Back to Movies</span>
-//             </button>
-//           </div>
-//         </div>
-//       </nav>
-
-//       {/* MAIN */}
-//       <main className="flex-1 px-5 sm:px-8 py-12">
-//         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8">
-//           {/* MOVIE CARD */}
-//           <div className="bg-[#0d1320] border border-white/[0.07] rounded-2xl overflow-hidden shadow-xl shadow-black/20 h-fit">
-//             <div className="bg-slate-950 flex items-center justify-center p-2">
-//               <img
-//                 src={movie.posterUrl}
-//                 alt={movie.title}
-//                 className="w-full h-80 object-contain rounded-xl"
-//               />
-//             </div>
-
-//             <div className="p-6">
-//               <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300">
-//                 {movie.category}
-//               </span>
-
-//               <h2 className="text-2xl font-bold mt-4">{movie.title}</h2>
-//               <p className="text-sm text-gray-500 leading-relaxed mt-2">
-//                 {movie.description}
-//               </p>
-
-//               <div className="mt-5">
-//                 <p className="text-[11px] uppercase tracking-wider text-gray-600 mb-2">
-//                   Available Showtimes
-//                 </p>
-//                 <div className="flex flex-wrap gap-2">
-//                   {availableShows.map((show) => (
-//                     <span
-//                       key={`${show.date}-${show.time}`}
-//                       className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300"
-//                     >
-//                       {formatShowDate(show.date)} · {formatShowTime(show.time)}
-//                     </span>
-//                   ))}
-//                   {availableShows.length === 0 && (
-//                     <p className="text-sm text-gray-500">No upcoming shows are available.</p>
-//                   )}
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-
-//           {/* FORM / SUCCESS */}
-//           {success ? (
-//             <div className="bg-[#0d1320] border border-white/[0.07] rounded-2xl p-8 flex flex-col items-center justify-center text-center h-fit">
-//               <CheckCircle2 className="text-green-500 mb-4" size={52} />
-//               <h3 className="text-2xl font-bold mb-2">Booking Confirmed!</h3>
-//               <p className="text-gray-400 text-sm">
-//                 {form.seats} seat(s) for{" "}
-//                 <span className="text-white font-medium">{movie.title}</span>
-//               </p>
-//               <p className="text-gray-400 text-sm mt-1">
-//                 Showtime: <span className="text-white">{form.showDate ? `${formatShowDate(form.showDate)}, ${formatShowTime(form.showTime)}` : "Unavailable"}</span>
-//               </p>
-//               {selectedCinema && (
-//                 <p className="text-gray-400 text-sm mt-1 mb-7">
-//                   Cinema:{" "}
-//                   <span className="text-white">
-//                     {selectedCinema.name}, {selectedCinema.city}
-//                   </span>
-//                 </p>
-//               )}
-
-//               <button
-//                 onClick={() => navigate("/my-bookings")}
-//                 className="w-full bg-red-600 hover:bg-red-500 transition py-3 rounded-xl font-semibold shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"
-//               >
-//                 <Ticket size={18} />
-//                 View My Bookings
-//               </button>
-
-//               <button
-//                 onClick={() => navigate("/")}
-//                 className="w-full mt-3 bg-white/5 hover:bg-white/10 border border-white/10 transition py-3 rounded-xl font-semibold"
-//               >
-//                 Book Another Movie
-//               </button>
-//             </div>
-//           ) : (
-//             <div className="bg-[#0d1320] border border-white/[0.07] rounded-2xl p-6 sm:p-8 h-fit">
-//               <h3 className="text-xl font-semibold mb-6">Booking Details</h3>
-
-//               {message && (
-//                 <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm p-3 rounded-lg mb-5">
-//                   {message}
-//                 </div>
-//               )}
-
-//               {noCinemas && (
-//                 <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm p-3 rounded-lg mb-5">
-//                   No cinemas have been added yet, so booking is not available
-//                   right now. Please check back soon.
-//                 </div>
-//               )}
-
-//               <form onSubmit={handleSubmit} className="space-y-5">
-//                 {/* CITY */}
-//                 <div>
-//                   <label className={labelClass}>City</label>
-//                   <div className={fieldBox}>
-//                     <MapPin className="text-gray-500 mr-3" size={18} />
-//                     <select
-//                       name="city"
-//                       value={form.city}
-//                       onChange={handleCityChange}
-//                       disabled={noCinemas}
-//                       className="w-full bg-transparent outline-none text-sm disabled:opacity-50"
-//                       required
-//                     >
-//                       <option value="" className="text-black">
-//                         Select your city
-//                       </option>
-//                       {cities.map((c) => (
-//                         <option key={c} value={c} className="text-black">
-//                           {c}
-//                         </option>
-//                       ))}
-//                     </select>
-//                   </div>
-//                 </div>
-
-//                 {/* CINEMA */}
-//                 <div>
-//                   <label className={labelClass}>Cinema</label>
-//                   <div className={fieldBox}>
-//                     <Film className="text-gray-500 mr-3" size={18} />
-//                     <select
-//                       name="locationId"
-//                       value={form.locationId}
-//                       onChange={handleChange}
-//                       disabled={!form.city}
-//                       className="w-full bg-transparent outline-none text-sm disabled:opacity-50"
-//                       required
-//                     >
-//                       <option value="" className="text-black">
-//                         {form.city ? "Select a cinema" : "Select a city first"}
-//                       </option>
-//                       {cityCinemas.map((l) => (
-//                         <option key={l._id} value={l._id} className="text-black">
-//                           {l.name}
-//                         </option>
-//                       ))}
-//                     </select>
-//                   </div>
-
-//                   {/* Chune hue cinema ki jaankari */}
-//                   {selectedCinema && (
-//                     <div className="mt-3 bg-white/5 border border-white/10 rounded-xl p-3.5 text-sm text-gray-400 space-y-2">
-//                       <div className="flex items-start gap-2.5">
-//                         <MapPin size={15} className="text-red-500 shrink-0 mt-0.5" />
-//                         <span>{selectedCinema.address}</span>
-//                       </div>
-//                       {selectedCinema.phone && (
-//                         <div className="flex items-center gap-2.5">
-//                           <Phone size={15} className="text-red-500 shrink-0" />
-//                           <span>{selectedCinema.phone}</span>
-//                         </div>
-//                       )}
-//                     </div>
-//                   )}
-//                   {selectedCinema?.mapUrl && (
-//                         <a
-//                           href={selectedCinema.mapUrl}
-//                           target="_blank"
-//                           rel="noopener noreferrer"
-//                           className="inline-flex items-center gap-2 text-red-400 hover:text-red-300"
-//                         >
-//                           <Navigation size={15} className="shrink-0" />
-//                           View on Google Maps
-//                         </a>
-//                       )}
-//                 </div>
-
-//                 {/* SHOWTIME */}
-//                 <div>
-//                   <label className={labelClass}>Show date</label>
-//                   <div className={fieldBox}>
-//                     <Clock className="text-gray-500 mr-3" size={18} />
-//                     <select
-//                       name="showDate"
-//                       value={form.showDate || ""}
-//                       onChange={(e) => {
-//                         const nextDate = e.target.value;
-//                         const firstShow = availableShows.find((show) => show.date === nextDate);
-//                         setForm((f) => ({ ...f, showDate: nextDate, showTime: firstShow?.time || "" }));
-//                       }}
-//                       className="w-full bg-transparent outline-none text-sm"
-//                       required
-//                     >
-//                       <option value="" className="text-black">Select a date</option>
-//                       {availableDates.map((date) => (
-//                         <option key={date} value={date} className="text-black">
-//                           {formatShowDate(date)}
-//                         </option>
-//                       ))}
-//                     </select>
-//                   </div>
-//                 </div>
-
-//                 <div>
-//                   <label className={labelClass}>Showtime</label>
-//                   <div className={fieldBox}>
-//                     <Clock className="text-gray-500 mr-3" size={18} />
-//                     <select
-//                       name="showTime"
-//                       value={form.showTime || ""}
-//                       onChange={handleChange}
-//                       className="w-full bg-transparent outline-none text-sm"
-//                       required
-//                     >
-//                       <option value="" className="text-black">Select a time</option>
-//                       {dateShows.map((show) => (
-//                         <option key={show.time} value={show.time} className="text-black">
-//                           {formatShowTime(show.time)}
-//                         </option>
-//                       ))}
-//                     </select>
-//                   </div>
-//                 </div>
-
-//                 {/* NAME */}
-//                 <div>
-//                   <label className={labelClass}>Full Name</label>
-//                   <div className={fieldBox}>
-//                     <User className="text-gray-500 mr-3" size={18} />
-//                     <input
-//                       type="text"
-//                       name="customerName"
-//                       placeholder="Enter your name"
-//                       value={form.customerName}
-//                       onChange={handleChange}
-//                       className="w-full bg-transparent outline-none text-sm placeholder-gray-600"
-//                       required
-//                     />
-//                   </div>
-//                 </div>
-
-//                 {/* CONTACT */}
-//                 <div>
-//                   <label className={labelClass}>Contact Number</label>
-//                   <div className={fieldBox}>
-//                     <Phone className="text-gray-500 mr-3" size={18} />
-//                     <input
-//                       type="tel"
-//                       name="contactNo"
-//                       placeholder="03XX-XXXXXXX"
-//                       value={form.contactNo}
-//                       onChange={handleChange}
-//                       className="w-full bg-transparent outline-none text-sm placeholder-gray-600"
-//                       required
-//                     />
-//                   </div>
-//                 </div>
-
-//                 {/* SEATS */}
-//                 <div>
-//                   <label className={labelClass}>Number of Seats</label>
-//                   <div className={fieldBox}>
-//                     <Users className="text-gray-500 mr-3" size={18} />
-//                     <input
-//                       type="number"
-//                       name="seats"
-//                       min="1"
-//                       value={form.seats}
-//                       onChange={handleChange}
-//                       className="w-full bg-transparent outline-none text-sm"
-//                       required
-//                     />
-//                   </div>
-//                 </div>
-
-//                 <button
-//                   type="submit"
-//                   disabled={saving || noCinemas || !locLoaded || availableShows.length === 0 || !form.showTime}
-//                   className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed transition py-3.5 rounded-xl font-semibold shadow-lg shadow-red-900/20"
-//                 >
-//                   {saving ? "Booking..." : "Confirm Booking"}
-//                 </button>
-//               </form>
-//             </div>
-//           )}
-//         </div>
-//       </main>
-
-//       <footer className="border-t border-white/10 bg-[#050811] py-6 text-center text-xs text-gray-600">
-//         © {new Date().getFullYear()} CineBook. All rights reserved.
-//       </footer>
-//     </div>
-//   );
-// }
-
-// export default BookingForm;
-
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   User,
   Phone,
-  Users,
-  Clock,
-  Clapperboard,
+  Minus,
+  Plus,
   ArrowLeft,
-  CheckCircle2,
   Ticket,
   MapPin,
-  Film,
   Navigation,
+  Check,
 } from "lucide-react";
 import api from "../api";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import { formatShowDate, formatShowTime, getUpcomingShows } from "../utils/shows";
+
+const parts = (date) => {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return {
+    weekday: dt.toLocaleDateString("en-US", { weekday: "short" }),
+    day: d,
+    month: dt.toLocaleDateString("en-US", { month: "short" }),
+  };
+};
+
+// Form ka ek numbered hissa
+function Step({ n, title, done, children }) {
+  return (
+    <section className="relative border-l border-line pb-10 pl-8 last:pb-0 sm:pl-10">
+      <span
+        className={`absolute -left-[17px] top-0 grid h-8 w-8 place-items-center rounded-full border font-display text-lg font-bold transition-colors ${
+          done ? "border-brass bg-brass text-ink" : "border-line bg-ink text-paper"
+        }`}
+      >
+        {done ? <Check size={16} strokeWidth={3} /> : n}
+      </span>
+      <h2 className="text-3xl font-extrabold text-paper">{title}</h2>
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function TicketLine({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-paper-ink/60">{label}</p>
+      <p className={`mt-0.5 font-display text-xl font-bold leading-tight ${value ? "" : "text-paper-ink/30"}`}>
+        {value || "Not chosen"}
+      </p>
+    </div>
+  );
+}
 
 function BookingForm() {
   const { id } = useParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -528,17 +93,27 @@ function BookingForm() {
       .then((res) => {
         setMovie(res.data);
         const shows = getUpcomingShows(res.data.shows || []);
+        // Home page se kisi khaas show par click kiya ho to wahi chuna hua aaye
+        const wanted = shows.find(
+          (s) => s.date === params.get("date") && s.time === params.get("time")
+        );
+        const pick = wanted || shows[0];
         setForm((f) => ({
           ...f,
-          showDate: shows[0]?.date || "",
-          showTime: shows[0]?.time || "",
+          showDate: pick?.date || "",
+          showTime: pick?.time || "",
         }));
       })
-      .catch(() => setLoadError("Movie not found."));
+      .catch(() => setLoadError("We couldn't find that film. It may have been removed."));
 
     api
       .get("/locations")
-      .then((res) => setLocations(res.data))
+      .then((res) => {
+        setLocations(res.data);
+        // Sirf ek shehar ho to wo khud hi chun lo
+        const only = [...new Set(res.data.map((l) => l.city))];
+        if (only.length === 1) setForm((f) => ({ ...f, city: only[0] }));
+      })
       .catch(() => setLocations([]))
       .finally(() => setLocLoaded(true));
   }, [id]);
@@ -547,19 +122,29 @@ function BookingForm() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // Shehar badalne par cinema reset ho jata hai
-  const handleCityChange = (e) => {
-    setForm({ ...form, city: e.target.value, locationId: "" });
-  };
+  const setSeats = (n) => setForm((f) => ({ ...f, seats: Math.max(1, n) }));
 
   const cities = [...new Set(locations.map((l) => l.city))].sort();
   const cityCinemas = locations.filter((l) => l.city === form.city);
   const selectedCinema = locations.find((l) => l._id === form.locationId);
   const noCinemas = locLoaded && locations.length === 0;
+  const seatsNum = Number(form.seats) || 0;
+
+  const missing = !form.locationId
+    ? "Choose a cinema to continue."
+    : !form.showTime
+    ? "Pick a showtime to continue."
+    : seatsNum < 1
+    ? "Add at least one seat."
+    : "";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
+    if (missing) {
+      setMessage(missing);
+      return;
+    }
     setSaving(true);
 
     try {
@@ -573,6 +158,7 @@ function BookingForm() {
         seats: Number(form.seats),
       });
       setSuccess(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       // Token expire ho gaya to dobara login karwao
       if (err.response?.status === 401) {
@@ -581,7 +167,7 @@ function BookingForm() {
         navigate("/login");
         return;
       }
-      setMessage(err.response?.data?.message || "Booking failed");
+      setMessage(err.response?.data?.message || "Booking didn't go through. Check your details and try again.");
     } finally {
       setSaving(false);
     }
@@ -589,338 +175,359 @@ function BookingForm() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-[#070b14] flex flex-col items-center justify-center text-white gap-4">
-        <p className="text-gray-400">{loadError}</p>
-        <button
-          onClick={() => navigate("/")}
-          className="px-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-semibold text-sm transition"
-        >
-          Back to Movies
-        </button>
+      <div className="flex min-h-screen flex-col">
+        <Navbar />
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4 text-center">
+          <h1 className="text-5xl font-black text-paper">Film not found</h1>
+          <p className="text-smoke">{loadError}</p>
+          <button onClick={() => navigate("/")} className="btn-brass">
+            Back to films
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!movie) {
     return (
-      <div className="min-h-screen bg-[#070b14] flex items-center justify-center text-white">
-        <p className="text-gray-400">Loading movie details...</p>
+      <div className="flex min-h-screen flex-col">
+        <Navbar />
+        <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-8">
+          <div className="h-64 animate-pulse rounded-[22px] bg-white/[0.04]" />
+        </div>
       </div>
     );
   }
 
-  const fieldBox =
-    "flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-3 focus-within:border-red-500/60 transition";
-  const labelClass =
-    "text-xs uppercase tracking-wide text-gray-500 mb-1.5 block";
+  const disabled =
+    saving || noCinemas || !locLoaded || availableShows.length === 0 || !form.showTime || !form.locationId;
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-white flex flex-col">
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-50 bg-[#080c16]/90 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 h-20 flex items-center justify-between">
-          <div
-            onClick={() => navigate("/")}
-            className="flex items-center gap-3 cursor-pointer"
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-900/30">
-              <Clapperboard size={24} />
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
+
+      {/* FILM HEADER */}
+      <header className="relative overflow-hidden border-b border-line">
+        <img
+          src={movie.posterUrl}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-2xl"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/85 to-ink/40" />
+
+        <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-8">
+          <Link to="/" className="inline-flex items-center gap-2 text-sm text-smoke hover:text-paper">
+            <ArrowLeft size={16} /> All films
+          </Link>
+
+          <div className="mt-6 grid items-center gap-8 md:grid-cols-[minmax(0,420px)_1fr]">
+            <img
+              src={movie.posterUrl}
+              alt={movie.title}
+              className="screen-glow aspect-video w-full rounded-2xl bg-black object-cover"
+            />
+            <div>
+              <span className="chip pointer-events-none text-xs">{movie.category}</span>
+              <h1 className="mt-4 text-6xl font-black text-paper sm:text-7xl">{movie.title}</h1>
+              {movie.description && (
+                <p className="mt-4 max-w-xl leading-relaxed text-smoke">{movie.description}</p>
+              )}
             </div>
-            <h1 className="text-xl font-extrabold tracking-wide">
-              Cine<span className="text-red-500">Book</span>
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/my-bookings")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-            >
-              <Ticket size={16} className="text-red-400" />
-              <span className="hidden sm:inline">My Bookings</span>
-            </button>
-
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
-            >
-              <ArrowLeft size={16} />
-              <span className="hidden sm:inline">Back to Movies</span>
-            </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* MAIN */}
-      <main className="flex-1 px-5 sm:px-8 py-12">
-        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8">
-          {/* MOVIE CARD */}
-          <div className="bg-[#0d1320] border border-white/[0.07] rounded-2xl overflow-hidden shadow-xl shadow-black/20 h-fit">
-            <div className="bg-slate-950 flex items-center justify-center p-2">
-              <img
-                src={movie.posterUrl}
-                alt={movie.title}
-                className="w-full h-80 object-contain rounded-xl"
-              />
-            </div>
-
-            <div className="p-6">
-              <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300">
-                {movie.category}
-              </span>
-
-              <h2 className="text-2xl font-bold mt-4">{movie.title}</h2>
-              <p className="text-sm text-gray-500 leading-relaxed mt-2">
-                {movie.description}
-              </p>
+      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-12 px-4 py-12 sm:px-8 lg:grid-cols-[1fr_380px]">
+        {/* LEFT: steps or success */}
+        {success ? (
+          <div className="rise-in self-start">
+            <p className="font-display text-2xl font-bold text-brass">You're booked</p>
+            <h2 className="mt-2 text-6xl font-black text-paper">See you at the movies.</h2>
+            <p className="mt-4 max-w-lg text-smoke">
+              {form.seats} seat{Number(form.seats) === 1 ? "" : "s"} for {movie.title} on{" "}
+              {formatShowDate(form.showDate)} at {formatShowTime(form.showTime)}
+              {selectedCinema ? `, ${selectedCinema.name}, ${selectedCinema.city}` : ""}. Your
+              ticket with its QR code is waiting in My tickets.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button onClick={() => navigate("/my-bookings")} className="btn-brass">
+                <Ticket size={16} /> Open my tickets
+              </button>
+              <button onClick={() => navigate("/")} className="btn-ghost">
+                Book another film
+              </button>
             </div>
           </div>
-
-          {/* FORM / SUCCESS */}
-          {success ? (
-            <div className="bg-[#0d1320] border border-white/[0.07] rounded-2xl p-8 flex flex-col items-center justify-center text-center h-fit">
-              <CheckCircle2 className="text-green-500 mb-4" size={52} />
-              <h3 className="text-2xl font-bold mb-2">Booking Confirmed!</h3>
-              <p className="text-gray-400 text-sm">
-                {form.seats} seat(s) for{" "}
-                <span className="text-white font-medium">{movie.title}</span>
-              </p>
-              <p className="text-gray-400 text-sm mt-1">
-                Showtime: <span className="text-white">{form.showDate ? `${formatShowDate(form.showDate)}, ${formatShowTime(form.showTime)}` : "Unavailable"}</span>
-              </p>
-              {selectedCinema && (
-                <p className="text-gray-400 text-sm mt-1 mb-7">
-                  Cinema:{" "}
-                  <span className="text-white">
-                    {selectedCinema.name}, {selectedCinema.city}
-                  </span>
-                </p>
-              )}
-
-              <button
-                onClick={() => navigate("/my-bookings")}
-                className="w-full bg-red-600 hover:bg-red-500 transition py-3 rounded-xl font-semibold shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"
-              >
-                <Ticket size={18} />
-                View My Bookings
-              </button>
-
-              <button
-                onClick={() => navigate("/")}
-                className="w-full mt-3 bg-white/5 hover:bg-white/10 border border-white/10 transition py-3 rounded-xl font-semibold"
-              >
-                Book Another Movie
-              </button>
-            </div>
-          ) : (
-            <div className="bg-[#0d1320] border border-white/[0.07] rounded-2xl p-6 sm:p-8 h-fit">
-              <h3 className="text-xl font-semibold mb-6">Booking Details</h3>
-
-              {message && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm p-3 rounded-lg mb-5">
-                  {message}
+        ) : (
+          <form id="booking-form" onSubmit={handleSubmit} className="ml-4">
+            {/* 1. CINEMA */}
+            <Step n={1} title="Choose a cinema" done={!!selectedCinema}>
+              {noCinemas ? (
+                <div className="notice-warn">
+                  No cinemas have been added yet, so booking isn't open. Please check back soon.
                 </div>
-              )}
-
-              {noCinemas && (
-                <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm p-3 rounded-lg mb-5">
-                  No cinemas have been added yet, so booking is not available
-                  right now. Please check back soon.
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* CITY */}
-                <div>
-                  <label className={labelClass}>City</label>
-                  <div className={fieldBox}>
-                    <MapPin className="text-gray-500 mr-3" size={18} />
-                    <select
-                      name="city"
-                      value={form.city}
-                      onChange={handleCityChange}
-                      disabled={noCinemas}
-                      className="w-full bg-transparent outline-none text-sm disabled:opacity-50"
-                      required
-                    >
-                      <option value="" className="text-black">
-                        Select your city
-                      </option>
-                      {cities.map((c) => (
-                        <option key={c} value={c} className="text-black">
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* CINEMA */}
-                <div>
-                  <label className={labelClass}>Cinema</label>
-                  <div className={fieldBox}>
-                    <Film className="text-gray-500 mr-3" size={18} />
-                    <select
-                      name="locationId"
-                      value={form.locationId}
-                      onChange={handleChange}
-                      disabled={!form.city}
-                      className="w-full bg-transparent outline-none text-sm disabled:opacity-50"
-                      required
-                    >
-                      <option value="" className="text-black">
-                        {form.city ? "Select a cinema" : "Select a city first"}
-                      </option>
-                      {cityCinemas.map((l) => (
-                        <option key={l._id} value={l._id} className="text-black">
-                          {l.name}
-                        </option>
-                      ))}
-                    </select>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="City">
+                    {cities.map((c) => (
+                      <button
+                        type="button"
+                        key={c}
+                        aria-pressed={form.city === c}
+                        onClick={() => setForm({ ...form, city: c, locationId: "" })}
+                        className="chip"
+                      >
+                        <MapPin size={14} /> {c}
+                      </button>
+                    ))}
+                    {!locLoaded && <span className="text-sm text-smoke">Loading cities…</span>}
                   </div>
 
-                  {/* Chune hue cinema ki jaankari */}
-                  {selectedCinema && (
-                    <div className="mt-3 bg-white/5 border border-white/10 rounded-xl p-3.5 text-sm text-gray-400 space-y-2">
-                      <div className="flex items-start gap-2.5">
-                        <MapPin size={15} className="text-red-500 shrink-0 mt-0.5" />
-                        <span>{selectedCinema.address}</span>
-                      </div>
-                      {selectedCinema.phone && (
-                        <div className="flex items-center gap-2.5">
-                          <Phone size={15} className="text-red-500 shrink-0" />
-                          <span>{selectedCinema.phone}</span>
-                        </div>
-                      )}
+                  {form.city && (
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {cityCinemas.map((l) => {
+                        const on = form.locationId === l._id;
+                        return (
+                          <button
+                            type="button"
+                            key={l._id}
+                            aria-pressed={on}
+                            onClick={() => setForm({ ...form, locationId: l._id })}
+                            className={`rounded-2xl border p-4 text-left transition-colors ${
+                              on
+                                ? "border-brass bg-brass/10"
+                                : "border-line bg-ink-2 hover:border-brass/40"
+                            }`}
+                          >
+                            <span className="flex items-start justify-between gap-3">
+                              <span className="font-display text-2xl font-bold text-paper">{l.name}</span>
+                              <span
+                                className={`mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border ${
+                                  on ? "border-brass bg-brass text-ink" : "border-line"
+                                }`}
+                              >
+                                {on && <Check size={12} strokeWidth={3} />}
+                              </span>
+                            </span>
+                            <span className="mt-2 block text-sm text-smoke">{l.address}</span>
+                            {l.phone && <span className="mt-1 block text-sm text-smoke">{l.phone}</span>}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
+
                   {selectedCinema?.mapUrl && (
-                        <a
-                          href={selectedCinema.mapUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-red-400 hover:text-red-300"
+                    <a
+                      href={selectedCinema.mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex items-center gap-2 text-sm text-brass hover:text-brass-soft"
+                    >
+                      <Navigation size={14} /> Directions to {selectedCinema.name}
+                    </a>
+                  )}
+                </>
+              )}
+            </Step>
+
+            {/* 2. SHOWTIME */}
+            <Step n={2} title="Pick a showtime" done={!!form.showTime}>
+              {availableShows.length === 0 ? (
+                <p className="text-smoke">No upcoming shows for this film right now.</p>
+              ) : (
+                <>
+                  <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Date">
+                    {availableDates.map((date) => {
+                      const p = parts(date);
+                      const on = form.showDate === date;
+                      return (
+                        <button
+                          type="button"
+                          key={date}
+                          aria-pressed={on}
+                          aria-label={formatShowDate(date)}
+                          onClick={() => {
+                            const firstShow = availableShows.find((show) => show.date === date);
+                            setForm((f) => ({ ...f, showDate: date, showTime: firstShow?.time || "" }));
+                          }}
+                          className={`flex w-[72px] shrink-0 flex-col items-center rounded-2xl border py-3 transition-colors ${
+                            on
+                              ? "border-brass bg-brass text-ink"
+                              : "border-line bg-ink-2 text-paper hover:border-brass/40"
+                          }`}
                         >
-                          <Navigation size={15} className="shrink-0" />
-                          View on Google Maps
-                        </a>
-                      )}
-                </div>
-
-                {/* SHOWTIME */}
-                <div>
-                  <label className={labelClass}>Show date</label>
-                  <div className={fieldBox}>
-                    <Clock className="text-gray-500 mr-3" size={18} />
-                    <select
-                      name="showDate"
-                      value={form.showDate || ""}
-                      onChange={(e) => {
-                        const nextDate = e.target.value;
-                        const firstShow = availableShows.find((show) => show.date === nextDate);
-                        setForm((f) => ({ ...f, showDate: nextDate, showTime: firstShow?.time || "" }));
-                      }}
-                      className="w-full bg-transparent outline-none text-sm"
-                      required
-                    >
-                      <option value="" className="text-black">Select a date</option>
-                      {availableDates.map((date) => (
-                        <option key={date} value={date} className="text-black">
-                          {formatShowDate(date)}
-                        </option>
-                      ))}
-                    </select>
+                          <span className={`text-xs ${on ? "text-ink/70" : "text-smoke"}`}>{p.weekday}</span>
+                          <span className="font-display text-3xl font-extrabold leading-none">{p.day}</span>
+                          <span className={`text-xs ${on ? "text-ink/70" : "text-smoke"}`}>{p.month}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                </div>
 
-                <div>
-                  <label className={labelClass}>Showtime</label>
-                  <div className={fieldBox}>
-                    <Clock className="text-gray-500 mr-3" size={18} />
-                    <select
-                      name="showTime"
-                      value={form.showTime || ""}
-                      onChange={handleChange}
-                      className="w-full bg-transparent outline-none text-sm"
-                      required
-                    >
-                      <option value="" className="text-black">Select a time</option>
-                      {dateShows.map((show) => (
-                        <option key={show.time} value={show.time} className="text-black">
-                          {formatShowTime(show.time)}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Time">
+                    {dateShows.map((show) => (
+                      <button
+                        type="button"
+                        key={show.time}
+                        aria-pressed={form.showTime === show.time}
+                        onClick={() => setForm({ ...form, showTime: show.time })}
+                        className="chip px-5 py-2.5 font-display text-lg font-bold"
+                      >
+                        {formatShowTime(show.time)}
+                      </button>
+                    ))}
                   </div>
-                </div>
+                </>
+              )}
+            </Step>
 
-                {/* NAME */}
+            {/* 3. DETAILS */}
+            <Step n={3} title="Your seats and details" done={false}>
+              <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Full Name</label>
-                  <div className={fieldBox}>
-                    <User className="text-gray-500 mr-3" size={18} />
+                  <label htmlFor="customerName" className="field-label">Full name</label>
+                  <div className="field">
+                    <User className="shrink-0 text-smoke" size={18} />
                     <input
+                      id="customerName"
                       type="text"
                       name="customerName"
-                      placeholder="Enter your name"
+                      placeholder="Name on the ticket"
                       value={form.customerName}
                       onChange={handleChange}
-                      className="w-full bg-transparent outline-none text-sm placeholder-gray-600"
                       required
                     />
                   </div>
                 </div>
 
-                {/* CONTACT */}
                 <div>
-                  <label className={labelClass}>Contact Number</label>
-                  <div className={fieldBox}>
-                    <Phone className="text-gray-500 mr-3" size={18} />
+                  <label htmlFor="contactNo" className="field-label">Contact number</label>
+                  <div className="field">
+                    <Phone className="shrink-0 text-smoke" size={18} />
                     <input
+                      id="contactNo"
                       type="tel"
                       name="contactNo"
                       placeholder="03XX-XXXXXXX"
                       value={form.contactNo}
                       onChange={handleChange}
-                      className="w-full bg-transparent outline-none text-sm placeholder-gray-600"
                       required
                     />
                   </div>
                 </div>
+              </div>
 
-                {/* SEATS */}
-                <div>
-                  <label className={labelClass}>Number of Seats</label>
-                  <div className={fieldBox}>
-                    <Users className="text-gray-500 mr-3" size={18} />
+              <div className="mt-6">
+                <label htmlFor="seats" className="field-label">Seats</label>
+                <div className="flex flex-wrap items-center gap-5">
+                  <div className="inline-flex items-center rounded-full border border-line bg-ink-2 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setSeats(seatsNum - 1)}
+                      disabled={seatsNum <= 1}
+                      className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10 disabled:opacity-30"
+                      aria-label="Remove a seat"
+                    >
+                      <Minus size={16} />
+                    </button>
                     <input
+                      id="seats"
                       type="number"
                       name="seats"
                       min="1"
                       value={form.seats}
                       onChange={handleChange}
-                      className="w-full bg-transparent outline-none text-sm"
+                      className="w-14 bg-transparent text-center font-display text-3xl font-extrabold text-paper outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setSeats(seatsNum + 1)}
+                      className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"
+                      aria-label="Add a seat"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+
+                  {/* Seat row: jitni seats, utni roshan */}
+                  <div className="flex items-end gap-1.5" aria-hidden>
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={`h-6 w-5 rounded-t-lg rounded-b-sm border-b-4 transition-colors duration-300 ${
+                          i < seatsNum
+                            ? "border-brass-soft bg-brass"
+                            : "border-white/10 bg-white/[0.06]"
+                        }`}
+                        style={{ transitionDelay: `${i * 25}ms` }}
+                      />
+                    ))}
+                    {seatsNum > 10 && (
+                      <span className="ml-1 font-display text-lg font-bold text-brass">+{seatsNum - 10}</span>
+                    )}
                   </div>
                 </div>
+              </div>
+            </Step>
+          </form>
+        )}
 
-                <button
-                  type="submit"
-                  disabled={saving || noCinemas || !locLoaded || availableShows.length === 0 || !form.showTime}
-                  className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed transition py-3.5 rounded-xl font-semibold shadow-lg shadow-red-900/20"
-                >
-                  {saving ? "Booking..." : "Confirm Booking"}
-                </button>
-              </form>
+        {/* RIGHT: live ticket */}
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <div className="drop-shadow-[0_30px_40px_rgba(0,0,0,0.5)]">
+            <div className="notch-bottom rounded-t-[22px] bg-paper p-6 text-paper-ink">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-lg font-extrabold">CineBook</span>
+                <span className="rounded-full border border-paper-ink/25 px-2.5 py-0.5 text-xs">Admit one per seat</span>
+              </div>
+              <h3 className="mt-5 text-4xl font-black leading-[0.95]">{movie.title}</h3>
+              <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4">
+                <div className="col-span-2">
+                  <TicketLine
+                    label="Cinema"
+                    value={selectedCinema && `${selectedCinema.name}, ${selectedCinema.city}`}
+                  />
+                </div>
+                <TicketLine label="Date" value={form.showDate && `${parts(form.showDate).weekday}, ${parts(form.showDate).month} ${parts(form.showDate).day}`} />
+                <TicketLine label="Time" value={form.showTime && formatShowTime(form.showTime)} />
+                <TicketLine label="Name" value={form.customerName} />
+                <TicketLine label="Seats" value={seatsNum > 0 && String(seatsNum)} />
+              </div>
+            </div>
+            <div className="mx-[14px] perf-h" />
+            <div
+              className={`notch-top rounded-b-[22px] bg-paper-2 px-6 py-4 text-paper-ink ${
+                success ? "tear-away" : ""
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-paper-ink/60">Stub</span>
+                <span className="font-display text-2xl font-black">
+                  Admit {seatsNum || "–"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {!success && (
+            <div className="mt-6">
+              {message && <div className="notice-err mb-4">{message}</div>}
+              <button type="submit" form="booking-form" disabled={disabled} className="btn-brass w-full py-3.5 text-base">
+                <Ticket size={18} />
+                {saving ? "Booking your seats…" : "Confirm booking"}
+              </button>
+              {!saving && missing && !noCinemas && (
+                <p className="mt-3 text-center text-sm text-smoke">{missing}</p>
+              )}
             </div>
           )}
-        </div>
+        </aside>
       </main>
 
-      <footer className="border-t border-white/10 bg-[#050811] py-6 text-center text-xs text-gray-600">
-        © {new Date().getFullYear()} CineBook. All rights reserved.
-      </footer>
+      <Footer />
     </div>
   );
 }
